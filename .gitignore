@@ -19,3 +19,5 @@ Thumbs.db
 # Node (defensive — not used yet)
 node_modules/
 npm-debug.log*
+
+.vercel

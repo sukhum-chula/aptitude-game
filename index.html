@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BrainArena — Aptitude Game Hub</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-1: #0f172a;
+    --bg-2: #1e293b;
+    --accent: #6366f1;
+    --accent-2: #8b5cf6;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --card: rgba(255, 255, 255, 0.06);
+    --card-border: rgba(255, 255, 255, 0.1);
+    --gray: #475569;
+    --gray-light: #64748b;
+  }
+
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 100%);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated background blobs */
+  .bg-decoration {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.25;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .bg-decoration.one {
+    width: 500px; height: 500px;
+    background: var(--accent);
+    top: -150px; left: -150px;
+  }
+  .bg-decoration.two {
+    width: 600px; height: 600px;
+    background: var(--accent-2);
+    bottom: -200px; right: -200px;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 60px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 24px;
+    font-weight: 700;
+  }
+  .logo-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+  }
+  nav { display: flex; gap: 28px; align-items: center; }
+  nav a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 15px;
+    transition: color 0.2s;
+  }
+  nav a:hover { color: var(--text); }
+  .login-btn {
+    background: var(--accent);
+    color: white;
+    padding: 10px 22px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+  .login-btn:hover { background: var(--accent-2); transform: translateY(-1px); }
+
+  /* Hero */
+  .hero {
+    text-align: center;
+    margin-bottom: 60px;
+  }
+  .hero h1 {
+    font-size: 52px;
+    font-weight: 800;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #fff 0%, #c7d2fe 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+  }
+  .hero p {
+    font-size: 18px;
+    color: var(--muted);
+    max-width: 640px;
+    margin: 0 auto 24px;
+    line-height: 1.6;
+  }
+  .stats {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-top: 32px;
+    flex-wrap: wrap;
+  }
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .stat-num {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .stat-label {
+    font-size: 13px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Section title */
+  .section-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .section-sub {
+    color: var(--muted);
+    margin-bottom: 32px;
+    font-size: 15px;
+  }
+
+  /* Game grid */
+  .games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+  }
+
+  .game-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 18px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+    text-decoration: none;
+    color: inherit;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+  }
+  .game-card.ready:hover {
+    transform: translateY(-6px);
+    border-color: var(--accent);
+    box-shadow: 0 12px 30px rgba(99, 102, 241, 0.25);
+  }
+  .game-card.ready:hover .game-icon {
+    transform: scale(1.1) rotate(-5deg);
+  }
+  .game-card.locked {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+  .game-card.locked:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255,255,255,0.15);
+  }
+
+  .game-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 16px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    transition: transform 0.3s ease;
+  }
+  /* Ready game gradients */
+  .game-card[data-color="purple"] .game-icon { background: linear-gradient(135deg, #a78bfa, #7c3aed); }
+  .game-card[data-color="blue"]   .game-icon { background: linear-gradient(135deg, #60a5fa, #2563eb); }
+  .game-card[data-color="pink"]   .game-icon { background: linear-gradient(135deg, #f472b6, #db2777); }
+  .game-card[data-color="green"]  .game-icon { background: linear-gradient(135deg, #4ade80, #16a34a); }
+  .game-card[data-color="orange"] .game-icon { background: linear-gradient(135deg, #fb923c, #ea580c); }
+  .game-card[data-color="cyan"]   .game-icon { background: linear-gradient(135deg, #22d3ee, #0891b2); }
+  .game-card[data-color="red"]    .game-icon { background: linear-gradient(135deg, #f87171, #dc2626); }
+
+  /* Locked game icon - gray */
+  .game-card.locked .game-icon {
+    background: linear-gradient(135deg, var(--gray-light), var(--gray));
+    filter: grayscale(100%);
+  }
+
+  .game-name {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .game-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.4;
+    margin-bottom: 12px;
+  }
+
+  .game-status {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .status-play {
+    background: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+  }
+  .status-soon {
+    background: rgba(148, 163, 184, 0.15);
+    color: var(--muted);
+  }
+
+  .lock-badge {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: rgba(0,0,0,0.4);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+  }
+
+  /* Footer */
+  footer {
+    margin-top: 80px;
+    padding-top: 32px;
+    border-top: 1px solid var(--card-border);
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 36px; }
+    nav { display: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="bg-decoration one"></div>
+  <div class="bg-decoration two"></div>
+
+  <div class="container">
+    <header>
+      <div class="logo">
+        <div class="logo-icon">🧠</div>
+        <span>BrainArena</span>
+      </div>
+      <nav>
+        <a href="#games">Games</a>
+        <a href="#leaderboard">Leaderboard</a>
+        <a href="#profile">Profile</a>
+        <button class="login-btn">Sign In</button>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <h1>Train Your Mind,<br/>Master Your Aptitude.</h1>
+      <p>Sharpen logic, memory, math, and reasoning with 11 fun mini-games designed to challenge every cognitive skill.</p>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-num">11</div>
+          <div class="stat-label">Mini Games</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">6</div>
+          <div class="stat-label">Skill Areas</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">∞</div>
+          <div class="stat-label">Levels</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="games">
+      <h2 class="section-title">Choose Your Challenge</h2>
+      <p class="section-sub">Pick a game to start training. Locked games are coming soon.</p>
+
+      <div class="games-grid">
+
+        <a href="games/logic-labyrinth.html" class="game-card ready" data-color="purple">
+          <div class="game-icon">🧩</div>
+          <div class="game-name">Logic Labyrinth</div>
+          <div class="game-desc">Solve maze-based logic puzzles</div>
+          <span class="game-status status-play">▶ Play Now</span>
+        </a>
+
+        <a href="games/number-ninja.html" class="game-card ready" data-color="blue">
+          <div class="game-icon">🔢</div>
+          <div class="game-name">Number Ninja</div>
+          <div class="game-desc">Lightning-fast mental arithmetic</div>
+          <span class="game-status status-play">▶ Play Now</span>
+        </a>
+
+        <a href="games/word-wizard.html" class="game-card ready" data-color="pink">
+          <div class="game-icon">📝</div>
+          <div class="game-name">Word Wizard</div>
+          <div class="game-desc">Verbal reasoning and vocabulary</div>
+          <span class="game-status status-play">▶ Play Now</span>
+        </a>
+
+        <a href="games/memory-matrix.html" class="game-card ready" data-color="green">
+          <div class="game-icon">🎯</div>
+          <div class="game-name">Memory Matrix</div>
+          <div class="game-desc">Test recall with visual patterns</div>
+          <span class="game-status status-play">▶ Play Now</span>
+        </a>
+
+        <a href="games/shape-shifter.html" class="game-card ready" data-color="orange">
+          <div class="game-icon">🔷</div>
+          <div class="game-name">Shape Shifter</div>
+          <div class="game-desc">Spatial reasoning challenges</div>
+          <span class="game-status status-play">▶ Play Now</span>
+        </a>
+
+        <a href="games/pattern-pulse.html" class="game-card ready" data-color="cyan">
+          <div class="game-icon">🌀</div>
+          <div class="game-name">Pattern Pulse</div>
+          <div class="game-desc">Spot the missing sequence</div>
+          <span class="game-status status-play">▶ Play Now</span>
+        </a>
+
+        <a href="games/quick-click.html" class="game-card ready" data-color="red">
+          <div class="game-icon">⚡</div>
+          <div class="game-name">Quick Click</div>
+          <div class="game-desc">Reaction speed and focus drill</div>
+          <span class="game-status status-play">▶ Play Now</span>
+        </a>
+
+        <div class="game-card locked">
+          <div class="lock-badge">🔒</div>
+          <div class="game-icon">🧮</div>
+          <div class="game-name">Math Mania</div>
+          <div class="game-desc">Advanced equation solving</div>
+          <span class="game-status status-soon">Coming Soon</span>
+        </div>
+
+        <div class="game-card locked">
+          <div class="lock-badge">🔒</div>
+          <div class="game-icon">🔍</div>
+          <div class="game-name">Visual Voyage</div>
+          <div class="game-desc">Find hidden details and patterns</div>
+          <span class="game-status status-soon">Coming Soon</span>
+        </div>
+
+        <div class="game-card locked">
+          <div class="lock-badge">🔒</div>
+          <div class="game-icon">🎲</div>
+          <div class="game-name">Puzzle Quest</div>
+          <div class="game-desc">Multi-step problem solving</div>
+          <span class="game-status status-soon">Coming Soon</span>
+        </div>
+
+        <div class="game-card locked">
+          <div class="lock-badge">🔒</div>
+          <div class="game-icon">💡</div>
+          <div class="game-name">Focus Flash</div>
+          <div class="game-desc">Attention and concentration test</div>
+          <span class="game-status status-soon">Coming Soon</span>
+        </div>
+
+      </div>
+    </section>
+
+    <footer>
+      <p>© 2026 BrainArena — Aptitude Training Platform · Built for curious minds.</p>
+    </footer>
+  </div>
+
+  <script>
+    // Click handler — only ready games navigate; locked ones show alert
+    document.querySelectorAll('.game-card.locked').forEach(card => {
+      card.addEventListener('click', e => {
+        e.preventDefault();
+        const name = card.querySelector('.game-name').textContent;
+        alert(`"${name}" is coming soon! Stay tuned.`);
+      });
+    });
+  </script>
+</body>
+</html>

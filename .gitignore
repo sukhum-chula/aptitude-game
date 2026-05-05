@@ -1,0 +1,21 @@
+# Local env / secrets
+.env
+.env.*
+!.env.example
+
+# Vercel
+.vercel
+
+# Supabase
+.supabase
+supabase/.temp
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Node (defensive — not used yet)
+node_modules/
+npm-debug.log*

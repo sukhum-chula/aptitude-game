@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**BrainArena** — a browser-based aptitude training hub with 11 mini-games. Currently in MVP/Phase 1: hub (`index.html`) plus 7 stub pages under `games/` (placeholders showing "🚧 Game in development") for the "ready" titles. The 4 remaining games are still locked on the hub — see "Game card states" below for the promote-to-ready procedure.
+**BrainArena** — a browser-based aptitude training hub with 11 mini-games. Currently in MVP/Phase 1: hub (`index.html`) plus 7 pages under `games/` for the "ready" titles. **`logic-labyrinth.html` is fully implemented** (T/F door-pick gameplay, 10 rounds, lives, score, streak bonus, end-of-run modal); the other 6 are still stubs showing "🚧 Game in development". The 4 remaining games are locked on the hub — see "Game card states" below for the promote-to-ready procedure.
 
 See `PROJECT_DETAIL.md` for the full game list, roadmap, and planned backend (none of which is implemented yet).
 

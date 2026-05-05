@@ -14,6 +14,10 @@ Pure static **HTML5 + CSS3 + vanilla JavaScript**. No build system, no package m
 
 A future migration to React/Vue and a Node/Express backend is mentioned in `PROJECT_DETAIL.md`, but nothing in the repo today depends on those — don't introduce framework code or a build step unless explicitly asked.
 
+## Backend
+
+Supabase is wired up but unused — the client is initialized in `assets/js/supabase-client.js` and exposed as `window.brainArenaSupabase` for game code to call when needed. The `SUPABASE_PUBLISHABLE_KEY` in that file is **safe to commit and ship to the browser** — Supabase's anon/publishable keys are designed for client use, with Row Level Security in the dashboard being what actually gates data. **Never put `service_role` or `sb_secret_*` keys anywhere in this repo or in client code.** Project ref: `uxgszfjjrutpfwdlahbc` (region: Northeast Asia / Tokyo).
+
 ## Architecture conventions established by `index.html`
 
 The hub is a single self-contained file: all CSS lives in a `<style>` block, all JS in a `<script>` block at the bottom. When adding game pages, follow the same self-contained pattern unless the user asks to extract shared assets into `assets/css/` and `assets/js/`.

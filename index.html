@@ -364,11 +364,26 @@
     padding: 8px 16px;
     backdrop-filter: blur(10px);
     margin-bottom: 60px;
+    max-height: 520px;
+    overflow-y: auto;
   }
+  .hs-recent-card::-webkit-scrollbar { width: 8px; }
+  .hs-recent-card::-webkit-scrollbar-track { background: transparent; }
+  .hs-recent-card::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+  }
+  .hs-recent-card::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.22); }
   .hs-recent-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 14px;
+  }
+  .hs-recent-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--bg-2);
+    z-index: 1;
   }
   .hs-recent-table th {
     text-align: left;
@@ -597,7 +612,7 @@
 
     <section id="high-score">
       <h2 class="section-title">High Scores</h2>
-      <p class="section-sub">Your top 3 best per game and the last 10 plays across all games.</p>
+      <p class="section-sub">Your top 3 best per game and the last 100 plays across all games.</p>
 
       <div class="hs-grid" id="hs-per-game"></div>
 
@@ -716,7 +731,7 @@
           }
         }
         all.sort((a, b) => new Date(b.s.started_at) - new Date(a.s.started_at));
-        const recent = all.slice(0, 10);
+        const recent = all.slice(0, 100);
 
         const tbody = document.querySelector("#hs-recent tbody");
         const tableEl = document.getElementById("hs-recent");

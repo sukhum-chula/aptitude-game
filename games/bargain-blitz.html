@@ -265,6 +265,7 @@
     position: absolute;
     top: 6px;
     left: 6px;
+    right: 6px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -272,16 +273,32 @@
     font-variant-numeric: tabular-nums;
     line-height: 1;
   }
+  .shelf-cell .price-row {
+    display: flex;
+    align-items: stretch;
+    gap: 4px;
+  }
   .shelf-cell .price-full,
-  .shelf-cell .price-reduced {
-    background: #ffffff;
+  .shelf-cell .price-reduced,
+  .shelf-cell .price-hint {
     font-size: 13px;
     font-weight: 700;
     padding: 2px 6px;
     border-radius: 4px;
   }
-  .shelf-cell .price-full    { color: #0f172a; }
-  .shelf-cell .price-reduced { color: #dc2626; }
+  .shelf-cell .price-full    { background: #ffffff; color: #0f172a; }
+  .shelf-cell .price-reduced { background: #ffffff; color: #dc2626; }
+  .shelf-cell .price-hint {
+    background: #fbbf24;
+    color: #422006;
+    box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.6),
+                0 4px 10px rgba(251, 191, 36, 0.3);
+  }
+  .hud-btn.active {
+    border-color: #fbbf24;
+    background: rgba(251, 191, 36, 0.12);
+    color: #fde68a;
+  }
   .shelf-cell.flash-correct {
     background: rgba(74, 222, 128, 0.3);
     border-color: #4ade80;
@@ -452,7 +469,7 @@
             A 4×5 shelf is stocked with marked-down items. Every round picks a
             new discount threshold — your job is to grab only the deals that
             actually beat it. Misjudge the percentage and the wrong item lands
-            in your Returns pile. Five minutes, as many rounds as you can clear.
+            in your Returns pile. Five rounds, five-minute clock.
           </p>
 
           <div class="how-to">
@@ -462,7 +479,7 @@
               <li><b>Pick the deals.</b> Click items whose <span style="color:#fca5a5;font-weight:700">red</span> price beats the threshold. Correct picks slide to <b>Cart</b>; wrong picks slide to <b>Returns</b>.</li>
               <li><b>Score.</b> Correct +1, wrong picks cost nothing — they just clutter your Returns. Clear every passing item with no mistakes for a <b>+3</b> round bonus.</li>
               <li><b>Tap NEXT ROUND</b> any time to skip remaining items and load a fresh shelf.</li>
-              <li><b>5-minute clock.</b> Round 1 is gentle (50%); rounds 2–5 tighten to 20–25%; rounds 6+ mix all four (10/20/25/50%).</li>
+              <li><b>5 rounds, 5-minute clock.</b> Round 1 is gentle (50%); rounds 2–5 tighten to 20% or 25%.</li>
             </ul>
           </div>
 
@@ -493,6 +510,7 @@
             <div class="hud-value" id="timer">5:00</div>
           </div>
           <div class="hud-actions">
+            <button class="hud-btn" id="btn-hint" type="button">Hint: Off</button>
             <button class="hud-btn" id="btn-pause" type="button">End at this point</button>
           </div>
         </div>
@@ -580,7 +598,9 @@
     const ROUND_CLEAR_BONUS= 3;
     const TIME_BONUS_PER_S = 0.2; // 1 pt per 5 s remaining → max ~+60
     const SHELF_COUNT      = 20;
+    const MAX_ROUNDS       = 5;
     const SESSION_LIMIT    = 20;
+    const HINT_KEY         = "bargainBlitz.hintMode";
 
     // 40-item pool — emoji-based, no external assets.
     const POOL = [
@@ -607,6 +627,7 @@
       returnsList:  el("returns-list"),
       btnNext:      el("btn-next"),
       btnPause:     el("btn-pause"),
+      btnHint:      el("btn-hint"),
       nextSummary:  el("next-summary"),
       ovTransition: el("overlay-transition"),
       transTitle:   el("trans-title"),
@@ -630,6 +651,9 @@
     /* ----- State ----- */
     const state = {
       phase: "intro",  // intro | running | transition | paused | resetConfirm | over
+      hintMode: (() => {
+        try { return localStorage.getItem(HINT_KEY) === "1"; } catch (e) { return false; }
+      })(),
 
       sessionId: null,
       sessionStartedAt: null,
@@ -694,7 +718,8 @@
     // never share the same criterion. Round 1 is always 50 by spec.
     const pickThreshold = (roundNo, prev) => {
       if (roundNo === 1) return 50;
-      const pool = roundNo <= 5 ? [25, 20] : [50, 25, 20, 10];
+      // Rounds 2–5 (the cap): pick 25% or 20%, never the same as the prior round.
+      const pool = [25, 20];
       const filtered = pool.filter(t => t !== prev);
       return choose(filtered.length ? filtered : pool);
     };
@@ -770,23 +795,73 @@
       void $.banner.offsetWidth;
       $.banner.classList.add("flash");
     };
+    // Hint = the breakeven full price for this reduced/threshold pair.
+    // Item passes the criterion when full > hint  (since reduced < threshold% × full
+    //   ⇔ reduced × (100/threshold%) < full).
+    const computeHint = (reduced, thresholdPct) =>
+      Math.round(reduced * 100 / thresholdPct);
+
     const renderShelf = () => {
       $.shelf.innerHTML = "";
+      const showHint = state.hintMode;
       for (const cell of state.shelf) {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "shelf-cell";
         btn.dataset.slot = String(cell.slot);
+        const hintHtml = showHint
+          ? `<div class="price-hint">${computeHint(cell.reduced, state.threshold)}</div>`
+          : "";
         btn.innerHTML = `
           <div class="price-tag">
             <div class="price-full">${cell.full}</div>
-            <div class="price-reduced">${cell.reduced}</div>
+            <div class="price-row">
+              <div class="price-reduced">${cell.reduced}</div>
+              ${hintHtml}
+            </div>
           </div>
           <div class="item">${cell.item}</div>
         `;
         btn.addEventListener("click", onShelfClick);
         $.shelf.appendChild(btn);
       }
+    };
+
+    // Toggle hint pills on existing cells without rebuilding the whole shelf
+    // (so click animations + cleared cells stay intact).
+    const updateHintPills = () => {
+      const showHint = state.hintMode;
+      for (let i = 0; i < state.shelf.length; i++) {
+        const cell = state.shelf[i];
+        const btn = $.shelf.children[i];
+        if (!btn) continue;
+        const row = btn.querySelector(".price-row");
+        if (!row) continue;
+        const existing = row.querySelector(".price-hint");
+        if (showHint) {
+          const value = String(computeHint(cell.reduced, state.threshold));
+          if (existing) {
+            existing.textContent = value;
+          } else {
+            const span = document.createElement("div");
+            span.className = "price-hint";
+            span.textContent = value;
+            row.appendChild(span);
+          }
+        } else if (existing) {
+          existing.remove();
+        }
+      }
+    };
+
+    const setHintMode = (on) => {
+      state.hintMode = !!on;
+      try { localStorage.setItem(HINT_KEY, on ? "1" : "0"); } catch (e) {}
+      if ($.btnHint) {
+        $.btnHint.textContent = `Hint: ${on ? "On" : "Off"}`;
+        $.btnHint.classList.toggle("active", on);
+      }
+      updateHintPills();
     };
     const renderHUD = () => {
       $.hudRound.textContent  = String(state.roundNo || 1);
@@ -911,6 +986,9 @@
         finishGame("timeout");
       } else if (reason === "reset") {
         // confirmReset finalizes via finishGame separately.
+      } else if (state.roundNo >= MAX_ROUNDS) {
+        // Played all 5 rounds — end the run instead of starting a 6th.
+        finishGame("completed");
       } else {
         showRoundTransition(state.roundNo + 1, cleared, roundBonus);
       }
@@ -1016,11 +1094,14 @@
         : 0;
 
       $.endTitle.textContent =
-        reason === "reset"   ? "Run reset." :
-        reason === "quit"    ? "Run ended." :
-                               "Time's up.";
+        reason === "completed" ? "All 5 rounds complete!" :
+        reason === "reset"     ? "Run reset." :
+        reason === "quit"      ? "Run ended." :
+                                 "Time's up.";
       $.endSubtitle.textContent =
-        reason === "timeout"
+        reason === "completed"
+          ? (timeBonus > 0 ? `Cleared with time to spare. Bonus: +${timeBonus}` : "Nice run.")
+          : reason === "timeout"
           ? (timeBonus > 0 ? `Time bonus: +${timeBonus}` : "How were the bargains?")
           : "Session saved.";
       $.endScore.textContent      = String(state.totalScore);
@@ -1193,6 +1274,10 @@
     $.btnResume.addEventListener("click", resumeGame);
     $.btnPauseReset.addEventListener("click", confirmEnd);
     $.btnPlayAgain.addEventListener("click", playAgain);
+    $.btnHint.addEventListener("click", () => setHintMode(!state.hintMode));
+
+    // Initialize hint button label/state from persisted preference.
+    setHintMode(state.hintMode);
   })();
   </script>
 

@@ -211,6 +211,24 @@
   }
   .cell:disabled { cursor: not-allowed; }
 
+  /* Hint overlay — currently-connected components from the source (blue) and
+     from any valid outlet (green). Cells in both are on a live solution path. */
+  .cell.hint-source {
+    background: rgba(96, 165, 250, 0.16);
+    border-color: rgba(96, 165, 250, 0.55);
+  }
+  .cell.hint-source .pipe-shape { fill: #93c5fd; }
+  .cell.hint-outlet {
+    background: rgba(74, 222, 128, 0.16);
+    border-color: rgba(74, 222, 128, 0.55);
+  }
+  .cell.hint-outlet .pipe-shape { fill: #86efac; }
+  .cell.hint-source.hint-outlet {
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.22), rgba(74, 222, 128, 0.22));
+    border-color: #67e8f9;
+  }
+  .cell.hint-source.hint-outlet .pipe-shape { fill: #67e8f9; }
+
   .launch-row { display: flex; justify-content: center; }
   .btn-launch {
     background: linear-gradient(135deg, #22d3ee, #0891b2);
@@ -411,6 +429,7 @@
             <div class="hud-value" id="timer">5:00</div>
           </div>
           <div class="hud-actions">
+            <button class="hud-btn" id="btn-hint" type="button">Show Hint</button>
             <button class="hud-btn" id="btn-pause" type="button">End at this point</button>
           </div>
         </div>
@@ -522,6 +541,7 @@
       boardFrame:  el('board-frame'),
       btnLaunch:   el('btn-launch'),
       btnPause:    el('btn-pause'),
+      btnHint:     el('btn-hint'),
       ovTransition:el('overlay-transition'),
       transTitle:  el('trans-title'),
       transSubtitle: el('trans-subtitle'),
@@ -571,6 +591,11 @@
       remainingMs: TOTAL_GAME_MS,
       lastTickRT: 0,
       rafId: null,
+
+      // Hint mode (off by default). When on, the board overlays the
+      // connected-component from the source (blue) and from any valid outlet
+      // (green); the intersection is the live solution path.
+      hintMode: false,
     };
 
     /* ----- Helpers ----- */
@@ -1020,6 +1045,32 @@
       return { flooded, order, reachedOutlets, hitValve, mainPath, rightSideExits };
     };
 
+    // BFS through the current pipe connections starting from one cell with a
+    // known entry side. Used by the hint overlay: from the source (entering
+    // 'left' at (sourceRow, 0)) and from each valid outlet (entering 'right'
+    // at (outletRow, cols-1)). Returns the set of "row,col" cells reached.
+    const computeFlowable = (layout, rows, cols, startR, startC, fromSide) => {
+      const reached = new Set();
+      const queue = [{ r: startR, c: startC, from: fromSide }];
+      while (queue.length) {
+        const { r, c, from } = queue.shift();
+        if (r < 0 || r >= rows || c < 0 || c >= cols) continue;
+        const tile = layout[r][c];
+        if (tile.type === 'empty') continue;
+        const conns = pipeConnections(tile.type, tile.rotation);
+        if (!conns.includes(from)) continue;
+        const key = `${r},${c}`;
+        if (reached.has(key)) continue;
+        reached.add(key);
+        for (const exit of conns) {
+          if (exit === from) continue;
+          const step = STEP[exit];
+          queue.push({ r: r + step.dr, c: c + step.dc, from: step.enter });
+        }
+      }
+      return reached;
+    };
+
     /* ----- Rendering ----- */
     const cellAt = (r, c) => $.board.querySelector(`[data-r="${r}"][data-c="${c}"]`);
 
@@ -1093,6 +1144,35 @@
       $.timer.classList.toggle('danger', state.remainingMs <= 30 * 1000);
     };
 
+    // Recompute the hint overlay based on the layout's current rotations and
+    // re-paint the cell hint classes. Called after each rotation while hint
+    // mode is on, and whenever a fresh round renders.
+    const updateHints = () => {
+      $.board.querySelectorAll('.cell').forEach(c => c.classList.remove('hint-source', 'hint-outlet'));
+      if (!state.hintMode || !state.layout) return;
+      if (state.phase !== 'playing') return;
+      const fromSrc = computeFlowable(state.layout, state.rows, state.cols, state.sourceRow, 0, 'left');
+      const fromOutlets = new Set();
+      for (const r of state.validOutlets) {
+        const set = computeFlowable(state.layout, state.rows, state.cols, r, state.cols - 1, 'right');
+        for (const k of set) fromOutlets.add(k);
+      }
+      for (const k of fromSrc) {
+        const [r, c] = k.split(',').map(Number);
+        cellAt(r, c)?.classList.add('hint-source');
+      }
+      for (const k of fromOutlets) {
+        const [r, c] = k.split(',').map(Number);
+        cellAt(r, c)?.classList.add('hint-outlet');
+      }
+    };
+
+    const toggleHint = () => {
+      state.hintMode = !state.hintMode;
+      $.btnHint.textContent = state.hintMode ? 'Hide Hint' : 'Show Hint';
+      updateHints();
+    };
+
     /* ----- Lifecycle ----- */
     const startGame = () => {
       state.sessionId = newSessionId();
@@ -1134,6 +1214,7 @@
       renderBoard();
       renderHUD();
       state.phase = 'playing';
+      updateHints();
     };
 
     const onCellClick = (r, c) => {
@@ -1150,14 +1231,19 @@
       state.totalRotations += 1;
       state.rotationLog.push({ ts: new Date().toISOString(), r, c });
       setCellRotationVisual(r, c);
+      if (state.hintMode) updateHints();
     };
 
     const launchRound = async () => {
       if (state.phase !== 'playing') return;
       state.phase = 'launching';
       $.btnLaunch.disabled = true;
-      // Disable all cells during animation
-      $.board.querySelectorAll('.cell').forEach(b => b.disabled = true);
+      // Disable all cells during animation; also strip any hint overlay so the
+      // flooded animation reads cleanly without competing tints.
+      $.board.querySelectorAll('.cell').forEach(b => {
+        b.disabled = true;
+        b.classList.remove('hint-source', 'hint-outlet');
+      });
 
       const sim = simulateFlow(
         state.layout, state.rows, state.cols, state.sourceRow,
@@ -1374,6 +1460,7 @@
     /* ----- Wire up ----- */
     $.btnStart.addEventListener('click', startGame);
     $.btnLaunch.addEventListener('click', launchRound);
+    $.btnHint.addEventListener('click', toggleHint);
     $.btnPause.addEventListener('click', pauseGame);
     $.btnResume.addEventListener('click', resumeGame);
     $.btnPauseReset.addEventListener('click', confirmEnd);

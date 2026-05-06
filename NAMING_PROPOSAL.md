@@ -1,6 +1,8 @@
 # Platform Naming & Icon Proposal
 
-> Goal: replace the working name **BrainArena** with something that better reflects the platform's mission — *aptitude training through play* — and pair it with a distinctive icon.
+> **Status:** Historical proposal. The platform shipped under **Synapse** (one of the candidates evaluated below — see §"Side-by-side comparison"), not the document's headline recommendation of MindForge. The hero copy and footer in `index.html`, plus all game-page titles, use Synapse with the tagline *"Spark Your Thinking."* Treat the rest of this document as the original brand-naming exploration; the icon system never had a final mark designed in code (the hub uses a stylised SVG of two neuron nodes connected by a glowing arc + spark, matching the Synapse vibe rather than the MindForge anvil sketches).
+
+> Original goal: replace the working name **BrainArena** with something that better reflects the platform's mission — *aptitude training through play* — and pair it with a distinctive icon.
 
 ---
 
@@ -128,4 +130,17 @@ It strikes the best balance for BrainArena's mission:
 
 ---
 
-*Document version: 1.0 — Last updated: May 2026*
+## Outcome (resolved)
+
+The platform shipped as **Synapse** with the tagline *"Spark Your Thinking."* Migration steps that were actually taken:
+
+- `index.html` `<title>`, hub `.logo` wordmark, and footer all read **Synapse**.
+- The `.logo-icon` is an inline SVG of two neuron nodes connected by a glowing arc, with an animated yellow spark above — closer to Concept C ("Sparked Brain" mark) of the **Synapse** candidate than the **MindForge** anvil mock.
+- Each game page header reuses the same Synapse wordmark + 🧠 emoji icon (theme.css default).
+- `PROJECT_DETAIL.md` and `CLAUDE.md` reference Synapse throughout. No domain has been reserved yet.
+
+This document is preserved as a record of the rename exploration, not as guidance for future work.
+
+---
+
+*Document version: 1.1 — original 2026-05; outcome appended 2026-05-06.*

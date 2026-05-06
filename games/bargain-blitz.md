@@ -48,11 +48,12 @@ A **big banner** at the top of the screen displays the active criterion in large
 
 > ### 🛒 Pick items where reduced price is **< 50%** of full price
 
+The session is capped at **5 rounds**:
+
 | Round | Threshold |
 |-------|-----------|
 | **Round 1** | `< 50%` (fixed, gentle introduction) |
-| **Rounds 2 – 5** | randomly chosen each round from `{ <25%, <20% }` |
-| **Rounds 6+** | randomly chosen each round from `{ <50%, <25%, <20%, <10% }` |
+| **Rounds 2 – 5** | randomly chosen each round from `{ <25%, <20% }`, never the same as the previous round |
 
 Mathematically, an item *passes* if `reduced_price < threshold_pct × full_price`.
 
@@ -60,10 +61,10 @@ Mathematically, an item *passes* if `reduced_price < threshold_pct × full_price
 
 | Click target | Outcome |
 |--------------|---------|
-| Item that **passes** the criterion | +1 score, item slides to **right (Cart) list**, top-to-bottom order |
-| Item that **fails** the criterion | -1 score (or 0 in Casual mode — see §7), item slides to **left (Returns) list**, top-to-bottom order |
+| Item that **passes** the criterion | +1 score, streak +1, item slides to **right (Cart) list**, top-to-bottom order |
+| Item that **fails** the criterion | 0 score (no penalty), streak resets to 0, item slides to **left (Returns) list**, top-to-bottom order |
 
-The two side lists keep growing during the round and reset between rounds. Both are scrollable if they overflow.
+There is a single difficulty mode — wrong picks never deduct points; they only break the streak and crowd the Returns column. The two side lists keep growing during the round and reset between rounds. Both are scrollable if they overflow.
 
 ### 2.5 Round End
 
@@ -75,38 +76,44 @@ Then a 1.0 s transition shows the round summary (correct, wrong, accuracy, total
 
 ### 2.6 Game End
 
-The session ends when the **5:00 countdown timer** hits `0:00`. The current round is interrupted; the End Screen appears.
+The session ends when **either** of:
+
+- The player completes (or skips with NEXT ROUND) **all 5 rounds** — the End Screen appears with the title *"All 5 rounds complete!"*.
+- The **5:00 countdown timer** hits `0:00` — the current round is interrupted and the End Screen appears with the title *"Time's up."*.
 
 ---
 
 ## 3. Pricing Rules
 
-All prices are **integers**.
+All prices are **integers**. Every shelf has **exactly 5 passing items** out of 20 (a fixed ratio rather than a random spread), so the player always knows the target count.
 
-### Round 1 (introductory, easy mental math)
-- Full price ∈ `[50, 500]`
-- Last digit ∈ `{0, 2, 4, 5, 6, 8}` (i.e., 0, 5, or even — never 1, 3, 7, 9)
-- This ensures clean halves: 80, 100, 250, 460, etc.
-- Reduced price chosen so that roughly half of the 20 items pass the < 50 % threshold.
+### Rounds 1 – 3 (clean mental math)
+- Full price ∈ `[50, 500]` for round 1, `[10, 999]` for rounds 2 – 3.
+- **Last digit must be 0 or 5** (multiples of 5) — keeps quick percentage math tractable: 25% of 240 is 60, 20% of 75 is 15, etc.
 
-### Round 2 onward (general)
-- Full price ∈ `[10, 999]`
-- No last-digit restriction
-- Reduced price chosen so that roughly **40 – 60 %** of the 20 items pass the round's threshold (see §10 for the generation algorithm).
+### Rounds 4 – 5 (general)
+- Full price ∈ `[10, 999]`.
+- No last-digit restriction.
 
 ### Reduced-price generation
 
-For each item, given the round threshold `T` (e.g., 0.25):
+The 20 slots are pre-assigned: **5 pass**, **15 fail**, then shuffled. For each slot the full price is generated first (with the lower bound bumped if needed so the cutoff supports a passing reduced price), then the reduced price is drawn from the matching half-range:
 
 ```text
-shouldPass   = randBool(p = 0.5)            // ~50% mix per round
-if shouldPass:
-    reduced = randInt(1, floor(T * full) - 1)
-else:
-    reduced = randInt(ceil(T * full), full - 1)
+PASSERS_PER_ROUND = 5
+passFlags = shuffle([true]*5 + [false]*15)
+
+for i in 0..19:
+    wantPass = passFlags[i]
+    full     = randomFullPrice(round, threshold, wantPass)
+    cutoff   = floor((threshold/100) * full)
+    if wantPass:
+        reduced = randInt(1, max(1, cutoff - 1))         // strictly < threshold * full
+    else:
+        reduced = randInt(max(cutoff, 1), full - 1)      // ≥ threshold * full, < full
 ```
 
-This guarantees a healthy mix of pass/fail items every round, so the player can't shortcut by always clicking everything or always skipping.
+`randomFullPrice` ensures `cutoff ≥ 2` for passing slots (by bumping the lower bound to `ceil(200 / threshold%)`) so a valid passing reduced price always exists.
 
 ---
 
@@ -115,12 +122,12 @@ This guarantees a healthy mix of pass/fail items every round, so the player can'
 | Action | Points |
 |--------|--------|
 | Correct pick (item passes, player clicked) | **+1** |
-| Wrong pick (item fails, player clicked) | **-1** *(Standard)* / 0 *(Casual)* |
+| Wrong pick (item fails, player clicked) | 0 (no penalty; resets streak) |
 | Skip an item (never clicked) | 0 |
 | Round-clear bonus: clicked every passing item, no wrong picks | **+3** |
 | Time bonus at game end (1 pt per 5 s remaining) | up to +60 |
 
-**Casual** difficulty sets wrong-pick penalty to 0 to lower the stakes for new players.
+There is one mode — wrong picks never subtract points; the only consequence is a broken streak and a more crowded Returns column.
 
 ---
 
@@ -137,11 +144,11 @@ This guarantees a healthy mix of pass/fail items every round, so the player can'
 | Input | Action |
 |-------|--------|
 | Click / tap item cell | Buy that item (correct or wrong) |
-| `Enter` / Space | Press NEXT ROUND |
-| `R` key | Reset (with confirmation modal) |
-| `P` key | Pause (timer + freeze) |
+| Click **NEXT ROUND** | Skip the remaining items and load the next round |
+| Click **Hint: On / Off** | Toggle the breakeven-price hint pill on each shelf cell — see §7 |
+| Click **End at this point** | End-confirm modal: *"End the run? Your current score will be saved."* On confirm, the in-flight round is finalized and the End screen appears |
 
-A **NEXT ROUND** button, **Reset**, and **Pause** live on the HUD.
+There are no keyboard shortcuts. There is no Pause or Reset button.
 
 ---
 
@@ -175,9 +182,10 @@ A **NEXT ROUND** button, **Reset**, and **Pause** live on the HUD.
 
 | Element | Default | On click |
 |---------|---------|----------|
-| Item cell | translucent indigo card · item icon · prices in top-left | flash green if correct / red if wrong, then slide-out animation |
-| Full price | small white text with strikethrough | — |
-| Reduced price | small bright red text below full price | — |
+| Item cell | translucent indigo card · item icon · price tags in top-left | flash green if correct / red if wrong, then slide-out animation |
+| Full-price pill | **black text on white** (no strikethrough), top-left | — |
+| Reduced-price pill | **red text on white**, same font size as full price, in a horizontal row directly below the full price | — |
+| Hint pill *(hint mode only)* | **gold text on amber**, sits to the right of the reduced-price pill in the same row, showing the breakeven full price `reduced × (100 / threshold%)`. Compare to the full-price pill: full > hint → it's a deal. | — |
 | Cart list (right) | green-tinted list, growing top-to-bottom | new entry slides in from shelf |
 | Returns list (left) | red-tinted list, growing top-to-bottom | new entry slides in from shelf |
 | Criteria banner | huge gradient text at top | pulses gently for 0.6 s when round changes |
@@ -259,10 +267,11 @@ Every session is captured for analysis. JSON shape:
 
 ---
 
-## 10. Reset Behavior
+## 10. End-at-this-point Behavior
 
-- Clicking **Reset** (or pressing `R`) opens a confirmation modal: *"Reset the game? Your progress will be lost."*
-- On confirm, the current session is finalized with `ended_reason: "reset"` and saved; a fresh `session_id`, fresh round 1 shelf, and 5:00 timer begin.
+- Clicking **End at this point** opens a confirmation modal: *"End the run? Your current score will be saved."*
+- On confirm, the current session is finalized with `ended_reason: "quit"` and persisted, then the End screen is shown.
+- To start fresh, click **Play Again** on the End screen.
 
 ---
 
@@ -271,42 +280,48 @@ Every session is captured for analysis. JSON shape:
 ### 11.1 Threshold for the round
 
 ```text
-function pickThreshold(roundNo):
+function pickThreshold(roundNo, prev):
     if roundNo == 1:
-        return 50
-    if roundNo <= 5:
-        return choose([25, 20])
-    return choose([50, 25, 20, 10])
+        return 50                          // fixed, gentle intro
+    // Rounds 2 – 5 (the cap): alternate between 25 and 20, never repeating prev.
+    pool     = [25, 20]
+    return choose(pool excluding prev)
 ```
 
-### 11.2 Generating one shelf (20 items)
+### 11.2 Generating one shelf (20 items, exactly 5 passing)
 
 ```text
 function generateShelf(roundNo, threshold):
-    items = sampleWithoutReplacement(POOL_OF_40_ITEMS, count = 20)
-    shelf = []
-    for item in items:
-        full    = randomFullPrice(roundNo)
-        reduced = randomReducedPrice(full, threshold)
-        shelf.push({ item, full, reduced })
+    items     = sampleWithoutReplacement(POOL_OF_40_ITEMS, count = 20)
+    passFlags = shuffle([true]*5 + [false]*15)        // exactly 5 passers, shuffled
+    shelf     = []
+    for i in 0..19:
+        wantPass = passFlags[i]
+        full     = randomFullPrice(roundNo, threshold, wantPass)
+        reduced  = randomReducedPrice(full, threshold, wantPass)
+        shelf.push({ item: items[i], full, reduced, passes: wantPass })
     return shelf
 
-function randomFullPrice(roundNo):
-    if roundNo == 1:
-        loop:
-            p = randInt(50, 500)
-            if lastDigitIn(p, [0, 2, 4, 5, 6, 8]):
-                return p
-    else:
-        return randInt(10, 999)
+function randomFullPrice(roundNo, threshold, wantPass):
+    if roundNo == 1:    lo, hi = 50, 500
+    else if roundNo<=3: lo, hi = 10, 999
+    else:               lo, hi = 10, 999
+    if wantPass:
+        // Need cutoff ≥ 2 so randInt(1, cutoff - 1) is valid.
+        lo = max(lo, ceil(200 / threshold))
+    if roundNo <= 3:
+        // Multiples of 5 only (last digit 0 or 5).
+        lo5 = ceilToMultipleOf5(lo); hi5 = floorToMultipleOf5(hi)
+        return lo5 + 5 * randInt(0, (hi5 - lo5) / 5)
+    return randInt(lo, hi)
 
-function randomReducedPrice(full, threshold):
-    cutoff      = floor((threshold / 100) * full)
-    shouldPass  = randBool(p = 0.5)
-    if shouldPass:
+function randomReducedPrice(full, threshold, wantPass):
+    cutoff = floor((threshold / 100) * full)
+    if wantPass:
         return randInt(1, max(1, cutoff - 1))
     else:
-        return randInt(min(cutoff, full - 1), full - 1)
+        lo = max(cutoff, 1); hi = max(lo, full - 1)
+        return randInt(lo, hi)
 ```
 
 ### 11.3 Click evaluation
@@ -317,14 +332,21 @@ function onClick(slot, threshold):
     passed  = cell.reduced < (threshold / 100) * cell.full
 
     if passed:
-        score += 1
+        score  += 1
+        streak += 1
         moveToCart(cell)
         log(slot, "correct")
     else:
-        score -= 1                     // 0 in Casual mode
+        streak = 0                       // wrong picks reset the streak; no score penalty
         moveToReturns(cell)
         log(slot, "wrong")
 ```
+
+### 11.4 Hint mode
+
+When **Hint** is on, each shelf cell renders a third gold pill (`reduced × (100 / threshold%)`) to the right of the reduced price. This is the breakeven full price — the player picks an item iff `full > hint`.
+
+For the four thresholds in play, the multipliers are clean integers: **50% → ×2**, **25% → ×4**, **20% → ×5**. Toggling the button mid-round patches existing cells in place rather than rebuilding the shelf, so click animations and cleared cells are preserved. Preference persists to `localStorage["bargainBlitz.hintMode"]`.
 
 ---
 

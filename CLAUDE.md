@@ -4,13 +4,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-A browser-based aptitude training hub (the brand is in flux — `index.html` currently uses **Synapse** while older game stubs still say "BrainArena"; don't reflexively normalize one to the other) with 11 mini-games. Currently in MVP/Phase 1: hub (`index.html`) plus pages under `games/` for the "ready" titles.
+**Synapse** — a browser-based aptitude training hub with 11 mini-game slots. Currently in MVP/Phase 1: hub (`index.html`) plus pages under `games/` for the "ready" titles. The hub has three sections: a games grid, a **High Scores** panel (top-3 per game + the latest 100 plays across all games, scrollable card with sticky header), and a **Settings** panel with a single button that wipes every game's `*.sessions` key from `localStorage`.
 
-**Game #1 (`numeric-cascade.html`) is fully implemented** per the spec at `games/numeric-cascade.md`: 5×5 Schulte-style grid, 3 rounds (asc → desc → asc, 1↔50), cascade refill from a pool, skip-penalty logic that wipes intermediate numbers, 5:00 countdown, intro / how-to-play landing screen, pause (P) / reset (R) shortcuts, end screen with per-round breakdown, and session JSON written to `localStorage` under `numericCascade.sessions` (capped at 20 entries).
+**Four games are fully implemented**:
 
-The other 6 ready titles (`number-ninja`, `word-wizard`, `memory-matrix`, `shape-shifter`, `pattern-pulse`, `quick-click`) are still stubs showing "🚧 Game in development". The 4 remaining games are locked on the hub — see "Game card states" below for the promote-to-ready procedure.
+| Slot | Slug | Spec | localStorage key |
+|------|------|------|------------------|
+| 1 | `numeric-cascade.html` | `games/numeric-cascade.md` | `numericCascade.sessions` |
+| 5 | `bargain-blitz.html`   | `games/bargain-blitz.md`   | `bargainBlitz.sessions` |
+| 8 | `flow-forge.html`      | `games/flow-forge.md`      | `flowForge.sessions` |
+| 11 | `phantom-path.html`   | `games/phantom-path.md`    | `phantomPath.sessions` |
 
-See `PROJECT_DETAIL.md` for the full game list, roadmap, and planned backend (none of which is implemented yet).
+Each game persists session JSON under its own key, capped at 20 most-recent entries. The hub reads all four arrays for the High Scores panel.
+
+The other 7 slots (Number Ninja, Word Wizard, Memory Matrix, Shape Shifter, Pattern Pulse, Quick Click, Visual Voyage, Puzzle Quest — though the visible roster shifts as new games are added) are locked on the hub. See "Game card states" below for the promote-to-ready procedure.
+
+**Cross-game UI conventions** (worth keeping consistent when implementing new games):
+
+- **No Pause / Reset buttons.** The HUD has a single **End at this point** button. Clicking it opens a modal — *"End the run? Your current score will be saved."* — with **End Run** (danger) + **Cancel** (secondary). Confirm → the in-flight round is finalized, the session is persisted with `ended_reason: "quit"`, and the End screen appears.
+- **Play Again** on the End screen returns to the intro for a fresh run; that replaces the old "Reset" path.
+- Most games offer an optional **Hint: On / Off** button (gold-styled when active) and persist the preference in their own `localStorage` key (e.g. `phantomPath.hintMode`, `bargainBlitz.hintMode`).
+- Keyboard shortcuts are mostly removed except in Numeric Cascade, which still has `P` (pause) and `H` (toggle hint).
+
+See `PROJECT_DETAIL.md` for the full game roster, roadmap, and planned backend (none of which is implemented yet).
 
 ## Stack & Tooling
 

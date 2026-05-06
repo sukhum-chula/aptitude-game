@@ -29,51 +29,57 @@ Phantom Path trains:
 
 ### 2.2 The Phantom & Its Movement
 
-- A single phantom monster appears at **row 1** at the start of each round.
-- Every **1 second** the phantom moves down to the next row (row 2, row 3, …, row 10).
-- After step 10, the phantom *exits* the bottom of the visible grid. The player then has a short window to click the predicted **row 11** column before the next round starts.
+- Each round starts with a **1-second pre-roll** ("Get ready…") on an empty board so the player can refocus before the descent.
+- The phantom then appears at **row 1**.
+- Every **1 second** afterwards the phantom moves down to the next row (row 2, row 3, …, row 10).
+- After step 10, the phantom *exits* the bottom of the visible grid. The player then clicks the predicted **row 11** column to advance — see §2.4.
 
 ### 2.3 X-Position Pattern (the puzzle)
 
-The X-position of the phantom follows a **periodic anchor + variance** pattern:
+Each round picks a **deviation triplet** and a **drift direction**, then re-uses them across all three periods. The whole 11-step path is computed as offsets from a single seed `f1`:
 
 ```
-Step 1  (anchor A1):       x  = A1
-Step 2:                    x  = A1 + v2     where v2 ∈ {-2,-1,0,1,2}
-Step 3:                    x  = A1 + v3     where v3 ∈ {-2,-1,0,1,2}
-Step 4:                    x  = A1 + v4     where v4 ∈ {-2,-1,0,1,2}
+D1, D2, D3 ∈ [-2, +2]   with |D2 − D1| ≤ 2 and |D3 − D2| ≤ 2
+E1 ∈ {-1, +1}             (the anchor-drift direction)
+f1 = rand(1, 10), then shifted into bounds (see below)
 
-Step 5  (anchor A2 = A1 ± 1):
-                           x  = A2
-Step 6:                    x  = A2 + v6
-Step 7:                    x  = A2 + v7
-Step 8:                    x  = A2 + v8
+Period 1 (anchor f1):
+  Step 1   x = f1
+  Step 2   x = f1 + D1
+  Step 3   x = f1 + D2
+  Step 4   x = f1 + D3
 
-Step 9  (anchor A3 = A2 ± 1):
-                           x  = A3
-Step 10:                   x  = A3 + v10
-Step 11 (HIDDEN - to predict):
-                           x  = A3 + v11    where v11 ∈ {-2,-1,0,1,2}
+Period 2 (anchor f1 + E1):
+  Step 5   x = f1 + E1
+  Step 6   x = f1 + D1 + E1
+  Step 7   x = f1 + D2 + E1
+  Step 8   x = f1 + D3 + E1
+
+Period 3 (anchor f1 + 2·E1):
+  Step 9   x = f1 + 2·E1
+  Step 10  x = f1 + 2·E1 + D1
+  Step 11  x = f1 + 2·E1 + D2          ← HIDDEN — predict this column
 ```
 
 Notes:
-- The **period is 4**: every 4th step is a fresh anchor, and the 3 following steps are noisy deviations from that anchor (±2 columns).
-- Between periods, the anchor **drifts by exactly ±1 column** (a controlled random walk).
-- All positions are clamped to the grid bounds [1, 10] — if a generated x falls outside, it is wrapped or re-rolled (see implementation note in §11).
+- The **period is 4**: each period starts with the pure anchor and the same `D1, D2, D3` deviations follow.
+- Period 3 is a half-period (only steps 9, 10, 11 — anchor, +D1, +D2). The hidden step uses **D2**, the same offset visible at step 3 (period 1) and step 7 (period 2).
+- Anchors drift by exactly `E1` each period (a single-direction walk, not a random walk).
+- After offsets are computed, `f1` is shifted into `[1 − minOffset, 10 − maxOffset]` so every step lands in `[1, 10]` — no clamping or wrapping at runtime.
 
-The player's job: from the visible 10 steps, infer **A3** (or estimate the most-likely landing column) and click it on row 11.
+The player's job: from the visible 10 steps, infer the deviation pattern and click the predicted column on row 11.
 
 ### 2.4 Prediction Window
 
-- After the phantom moves to row 10, the prediction strip (row 11) becomes **clickable** for **3 seconds**.
-- Clicking inside the window logs the guess; missing the window logs a `timeout` (no score).
+- After the phantom moves to row 10, the prediction strip (row 11) becomes **clickable** and **waits indefinitely** for the player.
+- The 3-minute global timer **pauses** during the prediction phase, so taking time to think doesn't drain the session clock.
+- Clicking a column logs the guess and advances to the reveal phase. There is no auto-timeout for the round.
 
 ### 2.5 Vanishing Trail
 
 - Each visited cell shows a **glowing trail dot**.
-- Each trail dot remains visible for exactly **10 seconds** after it appeared.
-- This means: when step 11's prediction window opens, the **step-1 dot has just faded out**, step-2 fades next, and so on. By the end of the prediction window, only steps 4–10 are still visible.
-- This gradual fade is the core difficulty driver: the player must commit to memory the early anchor positions before they vanish.
+- **Normal mode:** each dot stays at full opacity for **8 steps** (8 seconds), then fades linearly to 0 over the final **1 step**, and is removed at age **9 steps**. So when the player reaches the prediction phase, the earliest dots have already started disappearing — the gradual fade is the core difficulty driver.
+- **Hint mode** (see §5): trails persist for the entire round at full opacity, never fading.
 
 ### 2.6 Round Cycle & Scoring
 
@@ -84,7 +90,7 @@ The player's job: from the visible 10 steps, infer **A3** (or estimate the most-
 | Missed the window (no click) | 0 |
 | Streak bonus (3+ correct in a row) | +1 extra per consecutive correct |
 
-After the result is revealed (the actual phantom briefly flashes on row 11), the next round begins **immediately** with a fresh A1 and fresh phantom.
+After the result is revealed (the picked cell + the actual landing flash on row 11), the result text remains for **2 seconds** so the player can absorb the outcome and any visible hint lines, then the next round begins with a fresh `f1`.
 
 ### 2.7 Game End
 
@@ -106,11 +112,15 @@ The game ends when the **3:00 countdown timer** reaches `0:00`. Whatever round i
 | Input | Action |
 |-------|--------|
 | Mouse click / tap on a row-11 cell | Submit prediction |
-| `R` key | Reset (with confirmation modal) |
-| `P` key | Pause (timer + phantom freeze) |
-| `1`–`9`, `0` keyboard shortcut | Predict column 1–10 |
 
-A **Reset** button and **Pause** button live on the HUD.
+There are no keyboard shortcuts — input is fully click/tap-driven.
+
+The HUD has three buttons:
+
+- **Hint: On / Off** — toggles hint mode (see §5). Persists to `localStorage["phantomPath.hintMode"]`.
+- **End at this point** — opens the End-confirm modal: *"End the run? Your current score will be saved."* On confirm the in-flight round is finalized and the End screen appears with the current score.
+
+There is no Pause or Reset button. **Play Again** on the End screen returns to the intro for a fresh run.
 
 ---
 
@@ -144,11 +154,16 @@ A **Reset** button and **Pause** button live on the HUD.
 
 | Element | Default | Active |
 |---------|---------|--------|
-| Trail dot | radial glow purple→indigo, opacity decaying linearly over 10 s | newest dot has bright spark |
+| Trail dot | radial glow purple→indigo. Normal mode: full opacity 8 s, fade over the final 1 s. Hint mode: opacity stays at 1 for the round. | newest dot has bright spark |
 | Phantom (current step) | bright violet orb with subtle wobble animation | leaves trail behind |
 | Row-11 cell | translucent slot | hover: indigo border; clicked: pulse |
 | Correct cell reveal | green flash | shows actual landing |
 | Wrong guess reveal | red flash on guess + green flash on actual | side-by-side |
+| Hint anchor (rows 1, 3, 9) | gold halo (`box-shadow` ring) when hint mode is on | applied as the phantom passes through these rows |
+| Hint line **f1 → f3** | dashed gold line (animated) | drawn after step 3 — visualises the `D2` deviation |
+| Hint line **f9 → f11** | dashed green line | drawn after step 9 — `f11 = f9 + D2`, which is the same `D2` revealed by the gold line |
+
+**Hint mode** (toggled from the HUD) keeps the trail visible for the entire round and progressively draws two dashed lines that reveal the recurring `D2` offset across periods 1 and 3, so the player can read the answer geometrically.
 
 ---
 
@@ -235,12 +250,15 @@ Every session is captured for analysis. Each game session emits a JSON record li
 
 ---
 
-## 9. Reset Behavior
+## 9. End-at-this-point Behavior
 
-- Clicking **Reset** (or pressing `R`) opens a confirmation modal: *"Reset the game? Your progress will be lost."*
+- Clicking **End at this point** opens a confirmation modal: *"End the run? Your current score will be saved."*
 - On confirm:
-  - Current session is finalized with `ended_reason: "reset"` and saved.
-  - A fresh `session_id` and 3:00 timer begin a new session.
+  - The in-flight round (if any) is finalized as `result: "timeout"` (no answer logged) and pushed to the rounds log.
+  - The session is finalized with `ended_reason: "quit"` and persisted.
+  - The End screen shows the cumulative score, accuracy, best streak, and average response time.
+
+There is no separate Reset action. To start over, use **Play Again** on the End screen.
 
 ---
 
@@ -248,38 +266,50 @@ Every session is captured for analysis. Each game session emits a JSON record li
 
 ```text
 function generateRound():
-    A1 = randInt(3, 8)               // keep early anchors well inside the grid
-    A2 = clamp(A1 + choose([-1, +1]), 1, 10)
-    A3 = clamp(A2 + choose([-1, +1]), 1, 10)
+    D1 = randInt(-2, 2)
+    D2 = randInt(max(-2, D1 - 2), min(2, D1 + 2))   // |D2 − D1| ≤ 2
+    D3 = randInt(max(-2, D2 - 2), min(2, D2 + 2))   // |D3 − D2| ≤ 2
+    E1 = choose([-1, +1])
 
-    path = []
-    for step in 1..11:
-        anchor = (step <= 4) ? A1 : (step <= 8) ? A2 : A3
-        if step % 4 == 1:
-            x = anchor                    // pure anchor on the period-start step
-        else:
-            x = clamp(anchor + randInt(-2, +2), 1, 10)
-        path.push(x)
+    offsets = [
+        0,                       // step 1  (f1, anchor of period 1)
+        D1,                      // step 2
+        D2,                      // step 3
+        D3,                      // step 4
+        E1,                      // step 5  (anchor of period 2)
+        D1 + E1,                 // step 6
+        D2 + E1,                 // step 7
+        D3 + E1,                 // step 8
+        2*E1,                    // step 9  (anchor of period 3)
+        2*E1 + D1,               // step 10
+        2*E1 + D2,               // step 11 — hidden, the answer
+    ]
 
-    visible_path = path[0..9]            // steps 1–10
-    true_row11   = path[10]              // step 11 (the answer)
-    return { anchors: [A1, A2, A3], visible_path, true_row11 }
+    minOff = min(offsets); maxOff = max(offsets)
+    f1     = clamp(randInt(1, 10), 1 - minOff, 10 - maxOff)
+    path   = offsets.map(o => f1 + o)
+    return { f1, drift: E1, deviations: [D1, D2, D3], path }
 
 function runRound(round):
+    showFooter("Get ready…")
+    wait(1s)                                 // 1-step pre-roll, empty board
     for step in 1..10:
-        moveTo(round.visible_path[step-1])
-        scheduleFade(step, +10s)         // dot fades after 10 s
+        moveTo(round.path[step-1])
+        scheduleFade(step, +9s)              // dot fully visible 8 s, fades to 0 over the next 1 s
         wait(1s)
 
-    openPredictionWindow(3s)
+    pauseGlobalTimer()
+    openPredictionWindow()                   // no auto-timeout — wait for click
     onClick(col):
         log({ predicted_x: col, response_ms: now - windowOpen })
-        if col == round.true_row11:
-            score += 1 + streakBonus()
+        if col == round.path[10]:
+            score += 1 + streakBonus() + lightningBonus()
             streak += 1
         else:
             streak = 0
-        revealAnswer(round.true_row11)
+        revealAnswer(round.path[10])
+        wait(2s)                              // reveal pause before next round
+        resumeGlobalTimer()
         nextRound()
 ```
 

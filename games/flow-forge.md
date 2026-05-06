@@ -102,12 +102,10 @@ The game ends when **either** of:
 | Input | Action |
 |-------|--------|
 | Click / tap a tile | Rotate that pipe 90° clockwise |
-| `Enter` / Space | Press LAUNCH |
-| `R` key | Reset the game (with confirmation modal) |
-| `P` key | Pause (timer + freeze) |
-| `U` key | Undo last rotation (optional QoL) |
+| Click **LAUNCH** | Run the flow simulation |
+| Click **End at this point** | End-confirm modal: *"End the run? Your current score will be saved."* On confirm, the in-flight round is logged with `result: "quit"` and the End screen appears |
 
-A **LAUNCH** button, **Reset** button, and **Pause** button live on the HUD.
+There are no keyboard shortcuts and no Pause or Reset button. Use **Play Again** on the End screen to start a fresh run.
 
 ---
 
@@ -230,10 +228,11 @@ Every session is captured for analysis. Each game session emits a JSON record:
 
 ---
 
-## 8. Reset Behavior
+## 8. End-at-this-point Behavior
 
-- Clicking **Reset** (or pressing `R`) opens a confirmation modal: *"Reset the game? Your progress will be lost."*
-- On confirm, the current session is finalized with `ended_reason: "reset"` and saved; a fresh `session_id`, fresh round 1 grid, and 5:00 timer begin.
+- Clicking **End at this point** opens a confirmation modal: *"End the run? Your current score will be saved."*
+- On confirm, the in-flight round is appended to the rounds log with `result: "quit"` (its layout, valves, rotations, and rotation_log are captured), then the session is finalized with `ended_reason: "quit"` and persisted.
+- The End screen displays the current score and per-round breakdown. Click **Play Again** to start fresh.
 
 ---
 

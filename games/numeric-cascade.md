@@ -98,10 +98,8 @@ When the game ends, the **End Screen** displays the final score, accuracy, total
 |--------|--------|
 | Correct click | +1 |
 | Wrong click (skip) | 0 (penalized via skip logic) |
-| Round-clear bonus | +5 |
-| Time bonus (per second remaining at game end) | +1 |
 
-Maximum theoretical score: `(50 × 3) + (5 × 3) + 300 (time bonus)` = **465** points.
+Maximum theoretical score: `50 × 3 = ` **150** points (50 per round × 3 rounds). No round-clear bonus, no time bonus — score is purely the count of correctly-tapped numbers.
 
 ---
 
@@ -119,10 +117,10 @@ Maximum theoretical score: `(50 × 3) + (5 × 3) + 300 (time bonus)` = **465** p
 | Input | Action |
 |-------|--------|
 | Mouse click (or tap) on a cell | Select that number |
-| `R` key | Reset the game (with confirmation modal) |
 | `P` key | Pause the game (timer pauses) |
+| `H` key | Toggle the optional Show Hint highlight (when present) |
 
-A **Reset** button is also visible on the HUD.
+The HUD has a **Show Hint** button and an **End at this point** button — the latter opens a confirmation modal that, on confirm, finalizes the in-flight round and shows the End screen with the current score. There's no separate Reset button; **Play Again** on the End screen returns to the intro for a fresh run.
 
 ---
 
@@ -255,12 +253,13 @@ All session activity is captured for later analytics. Each game session produces
 
 ---
 
-## 9. Reset Behavior
+## 9. End-at-this-point Behavior
 
-- Clicking **Reset** (or pressing `R`) opens a confirmation modal: *"Reset the game? Your current progress will be lost."*
+- Clicking **End at this point** opens a confirmation modal: *"End the run? Your current score will be saved."*
 - On confirm:
-  - The current session log is finalized with `ended_reason: "reset"` and saved.
-  - A **new session** begins with a fresh `session_id`, fresh grid, and timer back to 5:00.
+  - The in-flight round is finalized with `ended_reason: "quit"` and pushed to the rounds log.
+  - The run finishes and the End screen appears with the current cumulative score (no new session is started automatically).
+  - **Play Again** on the End screen returns to the intro to start a fresh run.
 
 ---
 

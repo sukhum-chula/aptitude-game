@@ -477,7 +477,7 @@
             <ul>
               <li><b>Read the banner.</b> Each round shows the threshold — e.g. <i>"under 25% of full price."</i></li>
               <li><b>Pick the deals.</b> Click items whose <span style="color:#fca5a5;font-weight:700">red</span> price beats the threshold. Correct picks slide to <b>Cart</b>; wrong picks slide to <b>Returns</b>.</li>
-              <li><b>Score.</b> Correct +1, wrong picks cost nothing — they just clutter your Returns. Clear every passing item with no mistakes for a <b>+3</b> round bonus.</li>
+              <li><b>Score.</b> Correct +1, wrong picks cost nothing — they just clutter your Returns.</li>
               <li><b>Tap NEXT ROUND</b> any time to skip remaining items and load a fresh shelf.</li>
               <li><b>5 rounds, 5-minute clock.</b> Round 1 is gentle (50%); rounds 2–5 tighten to 20% or 25%.</li>
             </ul>
@@ -595,7 +595,6 @@
     const TOTAL_GAME_MS    = 5 * 60 * 1000;
     const TRANSITION_MS    = 1000;
     const SLIDE_MS         = 300;
-    const ROUND_CLEAR_BONUS= 3;
     const TIME_BONUS_PER_S = 0.2; // 1 pt per 5 s remaining → max ~+60
     const SHELF_COUNT      = 20;
     const MAX_ROUNDS       = 5;
@@ -948,16 +947,12 @@
       const elapsedAtEnd = TOTAL_GAME_MS - state.remainingMs;
       const durationMs = elapsedAtEnd - state.roundStartElapsed;
 
-      // Round-clear bonus: clicked every passing item AND no wrong picks.
+      // Whether the player cleared the round (all passers clicked, no wrong
+      // picks) — kept for the transition summary text only; no score bonus.
       const allPassersClicked = state.shelf
         .filter((c) => c.passes)
         .every((c) => c.clicked);
       const cleared = allPassersClicked && state.roundWrong === 0;
-      let roundBonus = 0;
-      if (cleared) {
-        roundBonus = ROUND_CLEAR_BONUS;
-        state.totalScore += roundBonus;
-      }
 
       const skippedSlots = state.shelf
         .filter((c) => !c.clicked)
@@ -972,8 +967,7 @@
         passing_total: state.passingTotal,
         correct: state.roundCorrect,
         wrong:   state.roundWrong,
-        round_bonus: roundBonus,
-        score: state.roundCorrect + roundBonus,
+        score: state.roundCorrect,
         ended_reason: reason,
         shelf: state.shelf.map((c) => ({
           slot: c.slot, item: c.item, full: c.full, reduced: c.reduced, passes: c.passes,
@@ -990,18 +984,18 @@
         // Played all 5 rounds — end the run instead of starting a 6th.
         finishGame("completed");
       } else {
-        showRoundTransition(state.roundNo + 1, cleared, roundBonus);
+        showRoundTransition(state.roundNo + 1, cleared);
       }
     };
 
-    const showRoundTransition = (nextRound, cleared, bonus) => {
+    const showRoundTransition = (nextRound, cleared) => {
       state.phase = "transition";
       const summaryParts = [
         `Round ${state.roundNo}`,
         `${state.roundCorrect} correct`,
         `${state.roundWrong} wrong`,
       ];
-      if (cleared && bonus > 0) summaryParts.push(`Clean sweep +${bonus}`);
+      if (cleared) summaryParts.push("Clean sweep");
       $.transTitle.textContent    = `Round ${nextRound}`;
       $.transSummary.textContent  = summaryParts.join(" · ");
       const nextThreshold = pickThreshold(nextRound, state.threshold);
@@ -1063,7 +1057,6 @@
           passing_total: state.passingTotal,
           correct: state.roundCorrect,
           wrong:   state.roundWrong,
-          round_bonus: 0,
           score: state.roundCorrect,
           ended_reason: reason,
           shelf: state.shelf.map((c) => ({

@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**BrainArena** — a browser-based aptitude training hub with 11 mini-games. Currently in MVP/Phase 1: hub (`index.html`) plus 7 pages under `games/` for the "ready" titles. **`logic-labyrinth.html` is fully implemented** (T/F door-pick gameplay, 10 rounds, lives, score, streak bonus, end-of-run modal); the other 6 are still stubs showing "🚧 Game in development". The 4 remaining games are locked on the hub — see "Game card states" below for the promote-to-ready procedure.
+A browser-based aptitude training hub (the brand is in flux — `index.html` currently uses **Synapse** while older game stubs still say "BrainArena"; don't reflexively normalize one to the other) with 11 mini-games. Currently in MVP/Phase 1: hub (`index.html`) plus pages under `games/` for the "ready" titles.
+
+**Game #1 (`numeric-cascade.html`) is fully implemented** per the spec at `games/numeric-cascade.md`: 5×5 Schulte-style grid, 3 rounds (asc → desc → asc, 1↔50), cascade refill from a pool, skip-penalty logic that wipes intermediate numbers, 5:00 countdown, intro / how-to-play landing screen, pause (P) / reset (R) shortcuts, end screen with per-round breakdown, and session JSON written to `localStorage` under `numericCascade.sessions` (capped at 20 entries).
+
+The other 6 ready titles (`number-ninja`, `word-wizard`, `memory-matrix`, `shape-shifter`, `pattern-pulse`, `quick-click`) are still stubs showing "🚧 Game in development". The 4 remaining games are locked on the hub — see "Game card states" below for the promote-to-ready procedure.
 
 See `PROJECT_DETAIL.md` for the full game list, roadmap, and planned backend (none of which is implemented yet).
 

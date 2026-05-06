@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Phantom Path — Synapse</title>
+<link rel="stylesheet" href="../assets/css/theme.css" />
+<style>
+  /* Layout overrides for Phantom Path. */
+  .game-stage { padding: 8px 24px 40px; align-items: flex-start; }
+  .pp-shell {
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  /* Screen visibility — only one .screen.active is shown. */
+  .screen { display: none; }
+  .screen.active { display: flex; flex-direction: column; gap: 18px; }
+
+  /* ---------- Intro / landing ---------- */
+  .intro-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 24px;
+    padding: 36px 32px;
+    backdrop-filter: blur(10px);
+    text-align: center;
+  }
+  .intro-icon {
+    width: 96px;
+    height: 96px;
+    margin: 0 auto 18px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, #a78bfa, #7c3aed);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    box-shadow: 0 10px 30px rgba(124, 58, 237, 0.35);
+  }
+  .intro-card h1 {
+    font-size: 32px;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+  .intro-skill {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.6px;
+    margin-bottom: 18px;
+  }
+  .intro-blurb {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.65;
+    max-width: 540px;
+    margin: 0 auto 26px;
+  }
+  .how-to {
+    text-align: left;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 22px 24px;
+    margin-bottom: 22px;
+  }
+  .how-to h2 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .how-to ul {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .how-to li {
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.55;
+    padding-left: 26px;
+    position: relative;
+  }
+  .how-to li::before {
+    content: "›";
+    position: absolute;
+    left: 8px;
+    top: 0;
+    color: var(--accent-2);
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .how-to li b { color: var(--text); font-weight: 600; }
+  .how-to li code {
+    background: rgba(99, 102, 241, 0.15);
+    color: #c7d2fe;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .start-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+  /* ---------- HUD (game screen) ---------- */
+  .hud {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr) auto;
+    gap: 10px;
+    align-items: stretch;
+  }
+  .hud-cell {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 10px 8px;
+    text-align: center;
+    backdrop-filter: blur(10px);
+  }
+  .hud-cell.streak {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.18), rgba(124, 58, 237, 0.18));
+    border-color: rgba(167, 139, 250, 0.4);
+  }
+  .hud-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 4px;
+  }
+  .hud-value { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  #timer.danger { color: #f87171; }
+  #timer.pulsing { animation: ppPulse 0.8s ease-in-out infinite; }
+  @keyframes ppPulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.08); }
+  }
+  .hud-actions { display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+  .hud-btn {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .hud-btn:hover {
+    border-color: var(--accent);
+    background: rgba(99, 102, 241, 0.1);
+  }
+
+  /* ---------- Stage / boards ---------- */
+  .stage-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  .stage-card {
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 18px;
+    padding: 18px;
+    backdrop-filter: blur(10px);
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .hint-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+    overflow: visible;
+  }
+  .hint-line {
+    stroke: #fbbf24;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    fill: none;
+    stroke-dasharray: 6 5;
+    filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.7));
+    opacity: 0.9;
+  }
+  .hint-line.future {
+    stroke: #4ade80;
+    filter: drop-shadow(0 0 5px rgba(74, 222, 128, 0.8));
+  }
+  .cell.hint-anchor {
+    box-shadow:
+      0 0 0 2px #fbbf24,
+      0 0 14px rgba(251, 191, 36, 0.55);
+    z-index: 2;
+  }
+  .hud-btn.active {
+    border-color: #fbbf24;
+    background: rgba(251, 191, 36, 0.12);
+    color: #fde68a;
+  }
+
+  /* board + row-11 prediction strip stack — same gap as cells, so row 11
+     reads as a direct continuation of row 10. */
+  .board-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* 10x10 board */
+  .board {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 4px;
+    aspect-ratio: 1 / 1;
+  }
+  .cell {
+    position: relative;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    aspect-ratio: 1 / 1;
+  }
+  .cell .trail {
+    position: absolute;
+    inset: 14%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 45%, #c7d2fe 0%, #818cf8 35%, #6366f1 70%, rgba(99,102,241,0) 100%);
+    pointer-events: none;
+    opacity: 1;
+    transform: scale(0.85);
+    transition: transform 0.18s ease-out;
+  }
+  .cell.has-trail-fresh .trail { transform: scale(1); }
+  .cell .phantom {
+    position: absolute;
+    inset: 6%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 45% 35%, #ffffff 0%, #e9d5ff 25%, #a78bfa 55%, #7c3aed 85%);
+    box-shadow:
+      0 0 18px rgba(167, 139, 250, 0.85),
+      0 0 32px rgba(124, 58, 237, 0.55);
+    pointer-events: none;
+    animation: ppPhantomWobble 1.2s ease-in-out infinite;
+  }
+  .cell .phantom::after {
+    content: "";
+    position: absolute;
+    top: -22%;
+    left: 50%;
+    width: 8px;
+    height: 8px;
+    transform: translate(-50%, 0);
+    background: #fde68a;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #fbbf24;
+    opacity: 0.85;
+  }
+  @keyframes ppPhantomWobble {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50%      { transform: translateY(-6%) scale(1.04); }
+  }
+
+  /* Reveal flashes */
+  .cell.reveal-correct {
+    background: rgba(74, 222, 128, 0.25);
+    border-color: #4ade80;
+    box-shadow: 0 0 18px rgba(74, 222, 128, 0.4);
+  }
+  .cell.reveal-actual {
+    background: rgba(74, 222, 128, 0.18);
+    border-color: rgba(74, 222, 128, 0.7);
+  }
+  .cell.reveal-wrong {
+    background: rgba(248, 113, 113, 0.22);
+    border-color: #f87171;
+  }
+
+  /* Column header (1..10) and prediction strip */
+  .col-header {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 4px;
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.5px;
+  }
+  .col-header span {
+    padding: 2px 0;
+  }
+  .predict-strip {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 4px;
+  }
+  .predict-cell {
+    aspect-ratio: 1 / 1;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px dashed rgba(255, 255, 255, 0.18);
+    border-radius: 6px;
+    cursor: not-allowed;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    transition: transform 0.12s, border-color 0.12s, background 0.15s;
+    font-family: inherit;
+  }
+  .predict-strip.live .predict-cell {
+    cursor: pointer;
+    border-style: solid;
+    border-color: rgba(99, 102, 241, 0.4);
+    background: rgba(99, 102, 241, 0.08);
+    color: var(--text);
+  }
+  .predict-strip.live .predict-cell:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+    background: rgba(99, 102, 241, 0.18);
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.25);
+  }
+  .predict-cell.picked {
+    background: rgba(167, 139, 250, 0.3) !important;
+    border-color: #a78bfa !important;
+    color: #fff !important;
+  }
+  .predict-cell.picked.correct {
+    background: rgba(74, 222, 128, 0.35) !important;
+    border-color: #4ade80 !important;
+  }
+  .predict-cell.picked.wrong {
+    background: rgba(248, 113, 113, 0.32) !important;
+    border-color: #f87171 !important;
+  }
+  .predict-cell.actual {
+    background: rgba(74, 222, 128, 0.25) !important;
+    border-color: #4ade80 !important;
+    color: #bbf7d0 !important;
+  }
+
+  .game-footer {
+    display: flex;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  /* ---------- Overlays / modals ---------- */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  .overlay-card {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(139, 92, 246, 0.12)), var(--bg-2);
+    border: 1px solid var(--card-border);
+    border-radius: 24px;
+    padding: 36px 28px;
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+  }
+  .overlay-card h2 { font-size: 26px; margin-bottom: 6px; }
+  .overlay-card .subtitle { color: var(--muted); margin-bottom: 22px; font-size: 14px; }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .stat-tile {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .stat-tile .label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .stat-tile .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white;
+    border: none;
+    padding: 11px 26px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    transition: transform 0.2s;
+  }
+  .btn-primary:hover { transform: translateY(-2px); }
+  .btn-secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--card-border);
+    padding: 11px 26px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    font-family: inherit;
+  }
+  .btn-secondary:hover {
+    border-color: var(--accent);
+    background: rgba(99, 102, 241, 0.08);
+  }
+  .btn-danger {
+    background: rgba(248, 113, 113, 0.2);
+    color: #fca5a5;
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    padding: 11px 26px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .btn-danger:hover {
+    background: rgba(248, 113, 113, 0.3);
+    border-color: #f87171;
+  }
+
+  @media (max-width: 540px) {
+    .hud { grid-template-columns: repeat(2, 1fr); }
+    .hud-actions { grid-column: span 2; flex-direction: row; justify-content: center; }
+    .intro-card h1 { font-size: 26px; }
+    .col-header { font-size: 9px; }
+  }
+</style>
+</head>
+<body data-color="purple">
+  <div class="bg-decoration one"></div>
+  <div class="bg-decoration two"></div>
+
+  <header class="page-header">
+    <a href="../index.html" class="logo">
+      <div class="logo-icon">🧠</div>
+      <span>Synapse</span>
+    </a>
+    <a href="../index.html" class="back-link">← Back to Hub</a>
+  </header>
+
+  <main class="game-stage">
+    <div class="pp-shell">
+      <!-- ============ INTRO ============ -->
+      <section class="screen active" id="screen-intro">
+        <div class="intro-card">
+          <div class="intro-icon">👻</div>
+          <h1>Phantom Path</h1>
+          <div class="intro-skill">Pattern Recognition · Forecasting · Visual Tracking</div>
+          <p class="intro-blurb">
+            A phantom drifts down a 10×10 grid one row per second, weaving through
+            a hidden anchor pattern. After it falls off the bottom, you have three
+            seconds to predict where it will land on the unseen <b>row 11</b>.
+            Decode the pattern, beat the fading trail, and rack up a streak before
+            the 3-minute clock runs out.
+          </p>
+
+          <div class="how-to">
+            <h2>How to Play</h2>
+            <ul>
+              <li><b>Watch the descent.</b> Every second the phantom moves one row down. Its column wobbles around a hidden <i>anchor</i> that drifts ±1 every 4 steps.</li>
+              <li><b>Predict row 11.</b> When the phantom exits the board, click the column where you think it will land next. Take as long as you need.</li>
+              <li><b>Mind the fading trail.</b> Each visited cell glows for <b>10 seconds</b>, then disappears. By the time you're predicting, the earliest dots may be gone.</li>
+              <li><b>Streaks &amp; speed.</b> +1 per correct guess. <b>+1 extra</b> for every consecutive correct beyond two. <b>+1 lightning bonus</b> if you click within the first second.</li>
+            </ul>
+          </div>
+
+          <div class="start-row">
+            <button class="btn-primary" id="btn-start" type="button">Start Game</button>
+            <a class="btn-secondary" href="../index.html">Back to Hub</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ GAME ============ -->
+      <section class="screen" id="screen-game">
+        <div class="hud">
+          <div class="hud-cell">
+            <div class="hud-label">Round</div>
+            <div class="hud-value" id="hud-round">1</div>
+          </div>
+          <div class="hud-cell">
+            <div class="hud-label">Score</div>
+            <div class="hud-value" id="hud-score">0</div>
+          </div>
+          <div class="hud-cell streak">
+            <div class="hud-label">Streak</div>
+            <div class="hud-value" id="hud-streak">0</div>
+          </div>
+          <div class="hud-cell">
+            <div class="hud-label">Time</div>
+            <div class="hud-value" id="timer">3:00</div>
+          </div>
+          <div class="hud-actions">
+            <button class="hud-btn" id="btn-hint" type="button">Hint: Off</button>
+            <button class="hud-btn" id="btn-pause" type="button">Pause</button>
+            <button class="hud-btn" id="btn-reset" type="button">Reset</button>
+          </div>
+        </div>
+
+        <div class="stage-wrap">
+          <div class="stage-card">
+            <svg class="hint-overlay" id="hint-overlay" aria-hidden="true"></svg>
+            <div class="col-header" id="col-header"></div>
+            <div class="board-stack">
+              <div class="board" id="board"></div>
+              <div class="predict-strip" id="predict-strip"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="game-footer" id="footer-hint">
+          Click a column on the prediction strip when it lights up.
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ============ PAUSE ============ -->
+  <div class="overlay" id="overlay-pause">
+    <div class="overlay-card">
+      <h2>Paused</h2>
+      <div class="subtitle">Click Resume to continue.</div>
+      <div class="modal-actions">
+        <button class="btn-primary" id="btn-resume" type="button">Resume</button>
+        <button class="btn-danger" id="btn-pause-reset" type="button">Reset Game</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ RESET CONFIRM ============ -->
+  <div class="overlay" id="overlay-reset">
+    <div class="overlay-card">
+      <h2>Reset the game?</h2>
+      <div class="subtitle">Your current progress will be lost.</div>
+      <div class="modal-actions">
+        <button class="btn-danger" id="btn-reset-confirm" type="button">Yes, Reset</button>
+        <button class="btn-secondary" id="btn-reset-cancel" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ END SCREEN ============ -->
+  <div class="overlay" id="overlay-end">
+    <div class="overlay-card">
+      <h2 id="end-title">Time's up.</h2>
+      <div class="subtitle" id="end-subtitle"></div>
+      <div class="stat-grid">
+        <div class="stat-tile"><div class="label">Final Score</div><div class="value" id="end-score">0</div></div>
+        <div class="stat-tile"><div class="label">Accuracy</div><div class="value" id="end-accuracy">0%</div></div>
+        <div class="stat-tile"><div class="label">Rounds Played</div><div class="value" id="end-rounds">0</div></div>
+        <div class="stat-tile"><div class="label">Best Streak</div><div class="value" id="end-best-streak">0</div></div>
+        <div class="stat-tile"><div class="label">Avg Response</div><div class="value" id="end-avg-rt">—</div></div>
+        <div class="stat-tile"><div class="label">Time Bonus</div><div class="value" id="end-time-bonus">+0</div></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-primary" id="btn-play-again" type="button">Play Again</button>
+        <a class="btn-secondary" href="../index.html">Back to Hub</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  /* ============================================================
+     Phantom Path — implementation per games/phantom-path.md
+     ============================================================ */
+  (() => {
+    const TOTAL_GAME_MS  = 3 * 60 * 1000;
+    const STEP_MS        = 1000;          // phantom advances one row / second
+    const PREROLL_MS     = STEP_MS;       // 1 step "Get ready" pause before step 1
+    const VISIBLE_STEPS  = 10;            // rows 1..10 are drawn
+    const PREDICT_MS     = 3000;          // prediction window
+    const TRAIL_LIFE_MS  = 9 * STEP_MS;   // dot lifetime: 9 steps total
+    const TRAIL_FADE_MS  = 1 * STEP_MS;   // dot spends its last step fading out
+    const LIGHTNING_MS   = 1000;          // < 1s response → +1 bonus
+    const REVEAL_MS      = 2000;          // pause after reveal before next round
+    const SESSION_LIMIT  = 20;
+    const VARIANCE       = 2;             // ±2 columns per step
+    const COLS           = 10;
+    const ROWS           = 10;
+    const HINT_KEY       = "phantomPath.hintMode";
+
+    const el = (id) => document.getElementById(id);
+    const $ = {
+      screenIntro: el("screen-intro"),
+      screenGame:  el("screen-game"),
+      hudRound:    el("hud-round"),
+      hudScore:    el("hud-score"),
+      hudStreak:   el("hud-streak"),
+      timer:       el("timer"),
+      board:       el("board"),
+      colHeader:   el("col-header"),
+      predictStrip:el("predict-strip"),
+      footerHint:  el("footer-hint"),
+      hintOverlay: el("hint-overlay"),
+      btnStart:    el("btn-start"),
+      btnPause:    el("btn-pause"),
+      btnReset:    el("btn-reset"),
+      btnHint:     el("btn-hint"),
+      ovPause:     el("overlay-pause"),
+      btnResume:   el("btn-resume"),
+      btnPauseReset:el("btn-pause-reset"),
+      ovReset:     el("overlay-reset"),
+      btnResetConfirm: el("btn-reset-confirm"),
+      btnResetCancel:  el("btn-reset-cancel"),
+      ovEnd:       el("overlay-end"),
+      endTitle:    el("end-title"),
+      endSubtitle: el("end-subtitle"),
+      endScore:    el("end-score"),
+      endAccuracy: el("end-accuracy"),
+      endRounds:   el("end-rounds"),
+      endBestStreak: el("end-best-streak"),
+      endAvgRt:    el("end-avg-rt"),
+      endTimeBonus:el("end-time-bonus"),
+      btnPlayAgain:el("btn-play-again"),
+    };
+
+    /* ----- State ----- */
+    const state = {
+      phase: "intro",   // intro | running | predicting | revealing | paused | resetConfirm | over
+      hintMode: (() => {
+        try { return localStorage.getItem(HINT_KEY) === "1"; } catch (e) { return false; }
+      })(),
+      sessionId: null,
+      sessionStartedAt: null,
+      sessionEndedAt:   null,
+      endedReason:      null,
+      // Round
+      roundNo: 0,
+      anchors: [0, 0, 0],
+      pathX: [],         // length 11 (steps 1..11, 0-indexed). Steps 1..10 visible, 10 hidden.
+      stepIndex: 0,      // steps already executed (0..VISIBLE_STEPS)
+      stepStartedRT: 0,  // performance.now() when the current step started
+      windowOpenedRT: 0, // performance.now() when prediction window opened
+      predictionResolvedAt: 0, // performance.now() when reveal finishes
+      revealUntilRT: 0,  // performance.now() when revealing should end
+      currentRound: null, // log object for round in progress
+      // Trails
+      trail: [],         // { col, row, spawnedRT, el }
+      // Cumulative
+      totalScore: 0,
+      streak: 0,
+      bestStreak: 0,
+      roundsPlayed: 0,
+      roundsCorrect: 0,
+      totalResponseMs: 0,
+      responseCount: 0,
+      rounds: [],        // finished round logs
+      // Timer
+      remainingMs: TOTAL_GAME_MS,
+      lastTickRT: 0,
+      rafId: null,
+      // Pause bookkeeping (resumeBaseline so step/window timers survive pauses)
+      pauseAt: 0,
+    };
+
+    /* ----- Helpers ----- */
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const randInt = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+    const choose = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const fmtTime = (ms) => {
+      const s = Math.max(0, Math.ceil(ms / 1000));
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    };
+    const newSessionId = () =>
+      (crypto.randomUUID && crypto.randomUUID()) ||
+      `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
+    const showOverlay = (overlayEl, on) => overlayEl.classList.toggle("show", !!on);
+    const setScreen = (name) => {
+      $.screenIntro.classList.toggle("active", name === "intro");
+      $.screenGame.classList.toggle("active", name !== "intro");
+    };
+
+    /* ----- Pattern generation -----
+       D1, D2, D3 ∈ [-2, 2] are a fixed deviation triplet reused across all three
+       periods. E1 ∈ {-1, +1} sets the anchor-drift direction. The path is built
+       as offsets from f1; if any computed step would fall outside [1, 10], f1
+       is shifted (clamped) so the entire 11-step sequence stays in bounds. */
+    const generateRound = () => {
+      // D1 is unconstrained in [-VARIANCE, +VARIANCE]; D2 must lie within ±2
+      // of D1 and D3 within ±2 of D2 (clamped back into [-VARIANCE, VARIANCE]),
+      // so consecutive deviations never jump by more than 2.
+      const MAX_GAP = 2;
+      const D1 = randInt(-VARIANCE, VARIANCE);
+      const D2 = randInt(
+        Math.max(-VARIANCE, D1 - MAX_GAP),
+        Math.min( VARIANCE, D1 + MAX_GAP)
+      );
+      const D3 = randInt(
+        Math.max(-VARIANCE, D2 - MAX_GAP),
+        Math.min( VARIANCE, D2 + MAX_GAP)
+      );
+      const E1 = choose([-1, 1]);
+
+      const offsets = [
+        0,                    // f1  — anchor of period 1
+        D1,                   // f2
+        D2,                   // f3
+        D3,                   // f4
+        E1,                   // f5  — anchor of period 2
+        D1 + E1,              // f6
+        D2 + E1,              // f7
+        D3 + E1,              // f8
+        E1 * 2,               // f9  — anchor of period 3
+        E1 * 2 + D1,          // f10
+        E1 * 2 + D2,          // f11 (hidden — to predict)
+      ];
+
+      const minOff = Math.min.apply(null, offsets);
+      const maxOff = Math.max.apply(null, offsets);
+      // Valid f1 range so f1+offset stays in [1, COLS] for every step.
+      const loF1 = 1 - minOff;
+      const hiF1 = COLS - maxOff;
+      // Pick a random f1 in [1, 10] then shift to fit.
+      let f1 = randInt(1, COLS);
+      f1 = clamp(f1, loF1, hiF1);
+
+      const path = offsets.map((o) => f1 + o);
+      const anchors = [f1, f1 + E1, f1 + 2 * E1];
+      return { anchors, path, deviations: [D1, D2, D3], drift: E1 };
+    };
+
+    /* ----- Board / strip rendering ----- */
+    const buildBoard = () => {
+      // Column header (1..10)
+      $.colHeader.innerHTML = "";
+      for (let c = 1; c <= COLS; c++) {
+        const sp = document.createElement("span");
+        sp.textContent = String(c);
+        $.colHeader.appendChild(sp);
+      }
+      // 10x10 board cells
+      $.board.innerHTML = "";
+      for (let r = 1; r <= ROWS; r++) {
+        for (let c = 1; c <= COLS; c++) {
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          cell.dataset.row = String(r);
+          cell.dataset.col = String(c);
+          $.board.appendChild(cell);
+        }
+      }
+      // Prediction strip
+      $.predictStrip.innerHTML = "";
+      for (let c = 1; c <= COLS; c++) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "predict-cell";
+        b.dataset.col = String(c);
+        b.textContent = String(c);
+        b.addEventListener("click", onPredictClick);
+        $.predictStrip.appendChild(b);
+      }
+    };
+
+    const cellAt = (row, col) =>
+      $.board.children[(row - 1) * COLS + (col - 1)];
+
+    const clearBoardVisuals = () => {
+      // Remove all phantom + trail elements and reset cell classes.
+      for (const cell of $.board.children) {
+        cell.classList.remove(
+          "has-trail-fresh", "reveal-correct", "reveal-actual", "reveal-wrong",
+          "hint-anchor"
+        );
+        cell.innerHTML = "";
+      }
+      state.trail = [];
+      clearHintLines();
+    };
+
+    const clearStripVisuals = () => {
+      $.predictStrip.classList.remove("live");
+      for (const b of $.predictStrip.children) {
+        b.classList.remove("picked", "correct", "wrong", "actual");
+      }
+    };
+
+    /* ----- Phantom step / trail ----- */
+    const placePhantomAtStep = (step /* 1..10 */) => {
+      const col = state.pathX[step - 1];
+      const row = step;
+
+      // Clear any previous phantom marker, then drop a trail dot + new phantom.
+      const prevPhantomEls = $.board.querySelectorAll(".cell .phantom");
+      prevPhantomEls.forEach((el) => el.remove());
+
+      const cell = cellAt(row, col);
+
+      const dot = document.createElement("span");
+      dot.className = "trail";
+      cell.appendChild(dot);
+      cell.classList.add("has-trail-fresh");
+      setTimeout(() => cell.classList.remove("has-trail-fresh"), 220);
+
+      const ph = document.createElement("span");
+      ph.className = "phantom";
+      cell.appendChild(ph);
+
+      state.trail.push({
+        col, row,
+        spawnedRT: performance.now(),
+        el: dot,
+      });
+
+      // Hint mode: highlight period-anchor rows 1, 3, 9 as the phantom passes them.
+      if (state.hintMode && (step === 1 || step === 3 || step === 9)) {
+        cell.classList.add("hint-anchor");
+      }
+      // Refresh hint lines — they reveal progressively as their endpoints
+      // are traced (f1→f3 after step 3, f9→f11 after step 9).
+      drawHintLines();
+    };
+
+    const removePhantomMarker = () => {
+      const els = $.board.querySelectorAll(".cell .phantom");
+      els.forEach((el) => el.remove());
+    };
+
+    const updateTrailFade = (now) => {
+      // Hint mode: trails persist for the whole round at full opacity.
+      // Normal mode: 9-step total lifetime, holding full opacity for 8 steps and
+      // fading linearly to 0 over the final 1 step.
+      const fadeStart = TRAIL_LIFE_MS - TRAIL_FADE_MS;
+      for (let i = state.trail.length - 1; i >= 0; i--) {
+        const t = state.trail[i];
+        if (state.hintMode) {
+          if (t.el) t.el.style.opacity = "1";
+          continue;
+        }
+        const age = now - t.spawnedRT;
+        if (age >= TRAIL_LIFE_MS) {
+          if (t.el && t.el.parentNode) t.el.parentNode.removeChild(t.el);
+          state.trail.splice(i, 1);
+        } else if (t.el) {
+          const opacity = age <= fadeStart
+            ? 1
+            : 1 - (age - fadeStart) / TRAIL_FADE_MS;
+          t.el.style.opacity = String(opacity);
+        }
+      }
+    };
+
+    /* ----- Hint mode helpers ----- */
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    const cssCenterOf = (cellEl, refRect) => {
+      const r = cellEl.getBoundingClientRect();
+      return {
+        x: r.left - refRect.left + r.width / 2,
+        y: r.top  - refRect.top  + r.height / 2,
+      };
+    };
+    const drawHintLines = () => {
+      const svg = $.hintOverlay;
+      if (!svg) return;
+      svg.innerHTML = "";
+      if (!state.hintMode) return;
+      // Lines are drawn from the start of the round through reveal —
+      // any phase where a path exists.
+      if (state.phase !== "running" && state.phase !== "predicting" && state.phase !== "revealing") return;
+      if (!state.pathX || state.pathX.length < 11) return;
+
+      const stage = svg.parentElement;
+      const sr = stage.getBoundingClientRect();
+
+      const f1  = state.pathX[0];
+      const f3  = state.pathX[2];
+      const f9  = state.pathX[8];
+      const f11 = state.pathX[10];
+
+      const cell1   = cellAt(1, f1);
+      const cell3   = cellAt(3, f3);
+      const cell9   = cellAt(9, f9);
+      const cellPredict = $.predictStrip.children[f11 - 1];
+      if (!cell1 || !cell3 || !cell9 || !cellPredict) return;
+
+      const p1  = cssCenterOf(cell1,        sr);
+      const p3  = cssCenterOf(cell3,        sr);
+      const p9  = cssCenterOf(cell9,        sr);
+      const p11 = cssCenterOf(cellPredict,  sr);
+
+      const mkLine = (a, b, kind) => {
+        const ln = document.createElementNS(SVG_NS, "line");
+        ln.setAttribute("x1", String(a.x));
+        ln.setAttribute("y1", String(a.y));
+        ln.setAttribute("x2", String(b.x));
+        ln.setAttribute("y2", String(b.y));
+        ln.setAttribute("class", "hint-line" + (kind ? " " + kind : ""));
+        svg.appendChild(ln);
+      };
+      // Lines appear progressively, only after their related trace is shown.
+      // f1 → f3 needs both endpoints traced (step 3+).
+      if (state.stepIndex >= 3) mkLine(p1, p3, "");
+      // f9 → f11 needs the f9 endpoint traced (step 9+); f11 is the implied
+      // landing column.
+      if (state.stepIndex >= 9) mkLine(p9, p11, "future");
+    };
+    const clearHintLines = () => {
+      if ($.hintOverlay) $.hintOverlay.innerHTML = "";
+    };
+    const applyHintAnchorClasses = () => {
+      for (const cell of $.board.children) cell.classList.remove("hint-anchor");
+      if (!state.hintMode || !state.pathX) return;
+      for (const step of [1, 3, 9]) {
+        if (state.stepIndex >= step) {
+          const col = state.pathX[step - 1];
+          if (col >= 1 && col <= COLS) cellAt(step, col).classList.add("hint-anchor");
+        }
+      }
+    };
+    const setHintMode = (on) => {
+      state.hintMode = !!on;
+      try { localStorage.setItem(HINT_KEY, on ? "1" : "0"); } catch (e) {}
+      if ($.btnHint) {
+        $.btnHint.textContent = `Hint: ${on ? "On" : "Off"}`;
+        $.btnHint.classList.toggle("active", on);
+      }
+      applyHintAnchorClasses();
+      if (on) drawHintLines();
+      else clearHintLines();
+      // If turning off, force trail dots back to a fade-aware opacity on the next frame
+      // (handled automatically by updateTrailFade). If turning on, restore opacity now.
+      if (on) {
+        for (const t of state.trail) if (t.el) t.el.style.opacity = "1";
+      }
+    };
+
+    /* ----- Round lifecycle ----- */
+    const startGame = () => {
+      state.sessionId        = newSessionId();
+      state.sessionStartedAt = new Date().toISOString();
+      state.sessionEndedAt   = null;
+      state.endedReason      = null;
+      state.totalScore       = 0;
+      state.streak           = 0;
+      state.bestStreak       = 0;
+      state.roundsPlayed     = 0;
+      state.roundsCorrect    = 0;
+      state.totalResponseMs  = 0;
+      state.responseCount    = 0;
+      state.rounds           = [];
+      state.remainingMs      = TOTAL_GAME_MS;
+
+      buildBoard();
+      setScreen("game");
+      renderHUD();
+
+      state.phase = "running";
+      state.lastTickRT = performance.now();
+      requestAnimationFrame(tick);
+      beginRound();
+    };
+
+    const beginRound = () => {
+      if (state.remainingMs <= 0) {
+        finishGame("timeout");
+        return;
+      }
+      state.roundNo += 1;
+
+      const { anchors, path, deviations, drift } = generateRound();
+      state.anchors  = anchors;
+      state.pathX    = path;
+      state.stepIndex = 0;
+      state.currentRound = {
+        round_no: state.roundNo,
+        started_at: new Date().toISOString(),
+        ended_at: null,
+        anchors: anchors.slice(),
+        deviations: deviations.slice(),
+        drift,
+        path_x: path.slice(0, 10),
+        true_row11_x: path[10],
+        predicted_x: null,
+        result: null,         // "correct" | "wrong" | "timeout"
+        response_ms: null,
+        lightning_bonus: 0,
+        streak_bonus: 0,
+        round_score: 0,
+        trail_visible_when_predicting: [],
+      };
+
+      clearBoardVisuals();
+      clearStripVisuals();
+      $.footerHint.textContent = "Get ready…";
+      renderHUD();
+
+      // Pre-roll: 1 step (PREROLL_MS) of empty board before phantom appears at step 1.
+      state.stepIndex = 0;
+      state.stepStartedRT = performance.now();
+    };
+
+    const advancePhantom = () => {
+      // Called by tick when STEP_MS has elapsed since stepStartedRT.
+      // stepIndex 0 → 1 covers the pre-roll → first phantom placement.
+      if (state.stepIndex < VISIBLE_STEPS) {
+        state.stepIndex += 1;
+        state.stepStartedRT = performance.now();
+        placePhantomAtStep(state.stepIndex);
+        if (state.stepIndex === 1) {
+          $.footerHint.textContent = "Track the path — the prediction strip lights up after step 10.";
+        }
+      } else {
+        openPredictionWindow();
+      }
+    };
+
+    const openPredictionWindow = () => {
+      removePhantomMarker();
+      state.phase = "predicting";
+      state.windowOpenedRT = performance.now();
+      $.predictStrip.classList.add("live");
+      $.footerHint.textContent = "Predict row 11 — click a column.";
+
+      // Snapshot which trail rows are still visible (rows 1..10 with non-faded dots)
+      const visibleSteps = state.trail
+        .map((t) => t.row)
+        .sort((a, b) => a - b);
+      state.currentRound.trail_visible_when_predicting = visibleSteps;
+
+      drawHintLines();
+    };
+
+    const submitPrediction = (col /* 1..10 */) => {
+      if (state.phase !== "predicting") return;
+      const responseMs = performance.now() - state.windowOpenedRT;
+      const r = state.currentRound;
+      r.predicted_x = col;
+      r.response_ms = Math.round(responseMs);
+      const truth = r.true_row11_x;
+      const correct = (col === truth);
+
+      // Mark picked button.
+      const pickedBtn = $.predictStrip.children[col - 1];
+      pickedBtn.classList.add("picked", correct ? "correct" : "wrong");
+
+      // Scoring.
+      let earned = 0;
+      let streakBonus = 0;
+      let lightningBonus = 0;
+      if (correct) {
+        earned = 1;
+        state.streak += 1;
+        if (state.streak >= 3) {
+          streakBonus = state.streak - 2; // streak 3 → +1, 4 → +2, ...
+          earned += streakBonus;
+        }
+        if (responseMs <= LIGHTNING_MS) {
+          lightningBonus = 1;
+          earned += 1;
+        }
+        state.bestStreak = Math.max(state.bestStreak, state.streak);
+        state.roundsCorrect += 1;
+        r.result = "correct";
+      } else {
+        state.streak = 0;
+        r.result = "wrong";
+      }
+      r.streak_bonus    = streakBonus;
+      r.lightning_bonus = lightningBonus;
+      r.round_score     = earned;
+      state.totalScore += earned;
+      state.totalResponseMs += responseMs;
+      state.responseCount += 1;
+
+      revealAnswer();
+    };
+
+    const revealAnswer = () => {
+      state.phase = "revealing";
+      const r = state.currentRound;
+      const truth = r.true_row11_x;
+
+      // Highlight the actual answer on the strip.
+      const actualBtn = $.predictStrip.children[truth - 1];
+      if (r.predicted_x === truth) {
+        actualBtn.classList.add("picked", "correct");
+      } else {
+        actualBtn.classList.add("actual");
+      }
+      $.predictStrip.classList.remove("live");
+
+      $.footerHint.textContent =
+        r.result === "correct" ? "Nailed it." :
+        r.result === "wrong"   ? `Actual landing: column ${truth}` :
+                                 `Time's up — phantom landed on column ${truth}`;
+
+      // Finalize round log
+      r.ended_at = new Date().toISOString();
+      state.rounds.push(r);
+      state.roundsPlayed += 1;
+      state.currentRound = null;
+      renderHUD();
+
+      state.revealUntilRT = performance.now() + REVEAL_MS;
+    };
+
+    const onPredictClick = (e) => {
+      const col = Number(e.currentTarget.dataset.col);
+      if (Number.isFinite(col)) submitPrediction(col);
+    };
+
+    const finishGame = (reason /* timeout | reset | quit */) => {
+      // If a round is in flight, finalize it as a timeout (no answer logged).
+      if (state.currentRound) {
+        const r = state.currentRound;
+        r.ended_at = new Date().toISOString();
+        if (r.result === null) {
+          r.result = "timeout";
+          r.predicted_x = null;
+          r.response_ms = null;
+        }
+        state.rounds.push(r);
+        state.roundsPlayed += 1;
+        state.currentRound = null;
+      }
+
+      state.phase = "over";
+      state.endedReason    = reason;
+      state.sessionEndedAt = new Date().toISOString();
+
+      // Time bonus only if every played round was correct.
+      const perfect = state.roundsPlayed > 0 && state.roundsCorrect === state.roundsPlayed;
+      let timeBonus = 0;
+      if (perfect && reason === "timeout") {
+        timeBonus = Math.min(20, Math.floor(state.remainingMs / 5000));
+      }
+      state.totalScore += timeBonus;
+
+      const accuracyPct = state.roundsPlayed > 0
+        ? Math.round((state.roundsCorrect / state.roundsPlayed) * 100)
+        : 0;
+      const avgRt = state.responseCount > 0
+        ? Math.round(state.totalResponseMs / state.responseCount)
+        : null;
+
+      $.endTitle.textContent =
+        reason === "reset"   ? "Run reset." :
+        reason === "quit"    ? "Run ended." :
+                               "Time's up.";
+      $.endSubtitle.textContent =
+        reason === "timeout"
+          ? (perfect ? "Flawless run — every prediction landed." : "How well did you trace the phantom?")
+          : "Session saved.";
+      $.endScore.textContent     = String(state.totalScore);
+      $.endAccuracy.textContent  = `${accuracyPct}%`;
+      $.endRounds.textContent    = String(state.roundsPlayed);
+      $.endBestStreak.textContent= String(state.bestStreak);
+      $.endAvgRt.textContent     = avgRt === null ? "—" : `${avgRt} ms`;
+      $.endTimeBonus.textContent = `+${timeBonus}`;
+
+      persistSession({
+        session_id: state.sessionId,
+        game: "phantom-path",
+        started_at: state.sessionStartedAt,
+        ended_at: state.sessionEndedAt,
+        ended_reason: reason,
+        duration_ms: TOTAL_GAME_MS - state.remainingMs,
+        final_score: state.totalScore,
+        rounds_played: state.roundsPlayed,
+        rounds_correct: state.roundsCorrect,
+        accuracy_pct: accuracyPct,
+        best_streak: state.bestStreak,
+        avg_response_ms: avgRt,
+        time_bonus: timeBonus,
+        rounds: state.rounds,
+      });
+
+      showOverlay($.ovEnd, true);
+    };
+
+    const persistSession = (record) => {
+      try {
+        const key = "phantomPath.sessions";
+        const arr = JSON.parse(localStorage.getItem(key) || "[]");
+        arr.push(record);
+        const trimmed = arr.slice(-SESSION_LIMIT);
+        localStorage.setItem(key, JSON.stringify(trimmed));
+      } catch (e) {
+        // localStorage may be unavailable; fail silent.
+      }
+    };
+
+    /* ----- HUD / timer ----- */
+    const renderHUD = () => {
+      $.hudRound.textContent  = String(state.roundNo || 1);
+      $.hudScore.textContent  = String(state.totalScore);
+      $.hudStreak.textContent = String(state.streak);
+      $.timer.textContent     = fmtTime(state.remainingMs);
+      $.timer.classList.toggle("danger",  state.remainingMs <= 30 * 1000);
+      $.timer.classList.toggle("pulsing", state.remainingMs <= 10 * 1000);
+    };
+
+    const tick = () => {
+      state.rafId = requestAnimationFrame(tick);
+      const now = performance.now();
+      const dt = now - state.lastTickRT;
+      state.lastTickRT = now;
+
+      // Trail fade is updated whenever the game is "live" (not paused/intro/over).
+      if (state.phase === "running" || state.phase === "predicting" || state.phase === "revealing") {
+        updateTrailFade(now);
+      }
+
+      if (state.phase === "running") {
+        state.remainingMs = Math.max(0, state.remainingMs - dt);
+        renderHUD();
+
+        // Phantom step pacing.
+        if (state.stepIndex < VISIBLE_STEPS) {
+          if (now - state.stepStartedRT >= STEP_MS) advancePhantom();
+        } else {
+          // Phantom has placed step 10; wait one more STEP_MS before opening
+          // the prediction window (phantom "exiting" off the bottom).
+          if (now - state.stepStartedRT >= STEP_MS) openPredictionWindow();
+        }
+
+        if (state.remainingMs <= 0) {
+          // Allow current round to play out only if we're already in predict/reveal.
+          // Since we're still in "running", just finish.
+          finishGame("timeout");
+          return;
+        }
+      } else if (state.phase === "predicting") {
+        // Round has no timeout — wait for the user's answer. Global timer is
+        // paused so prediction time doesn't drain the session clock.
+      } else if (state.phase === "revealing") {
+        state.remainingMs = Math.max(0, state.remainingMs - dt);
+        renderHUD();
+        if (now >= state.revealUntilRT) {
+          if (state.remainingMs <= 0) {
+            finishGame("timeout");
+            return;
+          }
+          state.phase = "running";
+          beginRound();
+        }
+      }
+      // paused / resetConfirm / intro / over: do nothing.
+    };
+
+    /* ----- Pause / Reset ----- */
+    const pauseGame = () => {
+      if (state.phase !== "running" && state.phase !== "predicting" && state.phase !== "revealing") return;
+      state.pauseAt = performance.now();
+      state._prePausePhase = state.phase;
+      state.phase = "paused";
+      showOverlay($.ovPause, true);
+    };
+    const resumeGame = () => {
+      if (state.phase !== "paused") return;
+      const now = performance.now();
+      const offset = now - state.pauseAt;
+      // Shift all real-time timestamps so step / window / reveal pacing is unaffected.
+      state.stepStartedRT  += offset;
+      state.windowOpenedRT += offset;
+      state.revealUntilRT  += offset;
+      for (const t of state.trail) t.spawnedRT += offset;
+      state.lastTickRT = now;
+      state.phase = state._prePausePhase || "running";
+      showOverlay($.ovPause, false);
+    };
+    const askReset = () => {
+      if (state.phase === "intro" || state.phase === "over") return;
+      if (state.phase !== "paused") {
+        // Pause-equivalent freeze: stash phase so cancelReset can restore.
+        state.pauseAt = performance.now();
+        state._prePausePhase = state.phase;
+      } else {
+        showOverlay($.ovPause, false);
+      }
+      state.phase = "resetConfirm";
+      showOverlay($.ovReset, true);
+    };
+    const cancelReset = () => {
+      showOverlay($.ovReset, false);
+      // Restore from the freeze.
+      const now = performance.now();
+      const offset = now - state.pauseAt;
+      state.stepStartedRT  += offset;
+      state.windowOpenedRT += offset;
+      state.revealUntilRT  += offset;
+      for (const t of state.trail) t.spawnedRT += offset;
+      state.lastTickRT = now;
+      state.phase = state._prePausePhase || "running";
+    };
+    const confirmReset = () => {
+      showOverlay($.ovReset, false);
+      // Finalize current session as reset.
+      finishGame("reset");
+      // Then jump straight into a fresh run.
+      showOverlay($.ovEnd, false);
+      startGame();
+    };
+
+    const playAgain = () => {
+      showOverlay($.ovEnd, false);
+      if (state.rafId) {
+        cancelAnimationFrame(state.rafId);
+        state.rafId = null;
+      }
+      $.board.innerHTML = "";
+      state.phase = "intro";
+      setScreen("intro");
+    };
+
+    /* ----- Wire up controls ----- */
+    $.btnStart.addEventListener("click", startGame);
+    $.btnPause.addEventListener("click", pauseGame);
+    $.btnReset.addEventListener("click", askReset);
+    $.btnResume.addEventListener("click", resumeGame);
+    $.btnPauseReset.addEventListener("click", askReset);
+    $.btnResetConfirm.addEventListener("click", confirmReset);
+    $.btnResetCancel.addEventListener("click", cancelReset);
+    $.btnPlayAgain.addEventListener("click", playAgain);
+    $.btnHint.addEventListener("click", () => setHintMode(!state.hintMode));
+
+    // Initialize hint button label/state from persisted preference.
+    setHintMode(state.hintMode);
+
+    window.addEventListener("resize", () => {
+      // Keep SVG line endpoints aligned when the layout changes.
+      drawHintLines();
+    });
+
+  })();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabase-client.js"></script>
+</body>
+</html>

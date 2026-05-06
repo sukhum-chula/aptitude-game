@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>BrainArena — Aptitude Game Hub</title>
+<title>Synapse — Spark Your Thinking</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -81,7 +81,17 @@
     justify-content: center;
     font-size: 24px;
     box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+    position: relative;
   }
+  .logo-icon svg {
+    width: 26px; height: 26px;
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
+  }
+  @keyframes sparkPulse {
+    0%, 100% { opacity: 0.7; transform: scale(1); }
+    50%      { opacity: 1;   transform: scale(1.15); }
+  }
+  .logo-icon .spark { animation: sparkPulse 1.6s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
   nav { display: flex; gap: 28px; align-items: center; }
   nav a {
     color: var(--muted);
@@ -269,6 +279,169 @@
     font-size: 13px;
   }
 
+  /* High Scores */
+  .hs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 36px;
+  }
+  .hs-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 18px 18px 16px;
+    backdrop-filter: blur(10px);
+  }
+  .hs-card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .hs-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .hs-card[data-color="purple"] .hs-card-icon { background: linear-gradient(135deg, #a78bfa, #7c3aed); }
+  .hs-card[data-color="blue"]   .hs-card-icon { background: linear-gradient(135deg, #60a5fa, #2563eb); }
+  .hs-card[data-color="pink"]   .hs-card-icon { background: linear-gradient(135deg, #f472b6, #db2777); }
+  .hs-card[data-color="green"]  .hs-card-icon { background: linear-gradient(135deg, #4ade80, #16a34a); }
+  .hs-card[data-color="orange"] .hs-card-icon { background: linear-gradient(135deg, #fb923c, #ea580c); }
+  .hs-card[data-color="cyan"]   .hs-card-icon { background: linear-gradient(135deg, #22d3ee, #0891b2); }
+  .hs-card[data-color="red"]    .hs-card-icon { background: linear-gradient(135deg, #f87171, #dc2626); }
+  .hs-card-name {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  .hs-list {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .hs-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    padding: 7px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+  }
+  .hs-list li .rank {
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .hs-list li .score {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .hs-list li.empty .score {
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  .hs-subtitle {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .hs-recent-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 8px 16px;
+    backdrop-filter: blur(10px);
+    margin-bottom: 60px;
+  }
+  .hs-recent-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  .hs-recent-table th {
+    text-align: left;
+    padding: 10px 12px;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    border-bottom: 1px solid var(--card-border);
+  }
+  .hs-recent-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    color: var(--text);
+  }
+  .hs-recent-table td:last-child,
+  .hs-recent-table th:last-child {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .hs-recent-table td:last-child {
+    font-weight: 700;
+  }
+  .hs-recent-table tr:last-child td { border-bottom: none; }
+  .hs-empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 28px 12px;
+    font-size: 14px;
+  }
+
+  /* Settings */
+  .settings-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 20px 22px;
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-bottom: 60px;
+  }
+  .settings-card .settings-text { flex: 1; min-width: 220px; }
+  .settings-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .settings-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .btn-danger-hub {
+    background: rgba(248, 113, 113, 0.15);
+    color: #fca5a5;
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    padding: 10px 22px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .btn-danger-hub:hover {
+    background: rgba(248, 113, 113, 0.25);
+    border-color: #f87171;
+  }
+
   /* Footer */
   footer {
     margin-top: 80px;
@@ -292,20 +465,27 @@
   <div class="container">
     <header>
       <div class="logo">
-        <div class="logo-icon">🧠</div>
-        <span>BrainArena</span>
+        <div class="logo-icon">
+          <!-- Synapse mark: two neuron nodes connected by a glowing arc with a spark -->
+          <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="7" cy="22" r="3.5" fill="white"/>
+            <circle cx="25" cy="10" r="3.5" fill="white"/>
+            <path d="M9.5 19.5 Q16 12 22.5 12.5" stroke-dasharray="0" />
+            <polygon class="spark" points="16,5 17.5,9 21,10 17.5,11 16,15 14.5,11 11,10 14.5,9" fill="#fbbf24" stroke="none"/>
+          </svg>
+        </div>
+        <span>Synapse</span>
       </div>
       <nav>
         <a href="#games">Games</a>
-        <a href="#leaderboard">Leaderboard</a>
-        <a href="#profile">Profile</a>
-        <button class="login-btn">Sign In</button>
+        <a href="#high-score">High Scores</a>
+        <a href="#settings">Settings</a>
       </nav>
     </header>
 
     <section class="hero">
-      <h1>Train Your Mind,<br/>Master Your Aptitude.</h1>
-      <p>Sharpen logic, memory, math, and reasoning with 11 fun mini-games designed to challenge every cognitive skill.</p>
+      <h1>Spark Your Thinking.<br/>Sharpen Every Connection.</h1>
+      <p>Synapse is your aptitude playground — 11 fun mini-games designed to fire up logic, memory, math, and reasoning, one neural spark at a time.</p>
       <div class="stats">
         <div class="stat">
           <div class="stat-num">11</div>
@@ -328,62 +508,66 @@
 
       <div class="games-grid">
 
-        <a href="games/logic-labyrinth.html" class="game-card ready" data-color="purple">
-          <div class="game-icon">🧩</div>
-          <div class="game-name">Logic Labyrinth</div>
-          <div class="game-desc">Solve maze-based logic puzzles</div>
-          <span class="game-status status-play">▶ Play Now</span>
-        </a>
-
-        <a href="games/number-ninja.html" class="game-card ready" data-color="blue">
-          <div class="game-icon">🔢</div>
-          <div class="game-name">Number Ninja</div>
-          <div class="game-desc">Lightning-fast mental arithmetic</div>
-          <span class="game-status status-play">▶ Play Now</span>
-        </a>
-
-        <a href="games/word-wizard.html" class="game-card ready" data-color="pink">
-          <div class="game-icon">📝</div>
-          <div class="game-name">Word Wizard</div>
-          <div class="game-desc">Verbal reasoning and vocabulary</div>
-          <span class="game-status status-play">▶ Play Now</span>
-        </a>
-
-        <a href="games/memory-matrix.html" class="game-card ready" data-color="green">
-          <div class="game-icon">🎯</div>
-          <div class="game-name">Memory Matrix</div>
-          <div class="game-desc">Test recall with visual patterns</div>
-          <span class="game-status status-play">▶ Play Now</span>
-        </a>
-
-        <a href="games/shape-shifter.html" class="game-card ready" data-color="orange">
-          <div class="game-icon">🔷</div>
-          <div class="game-name">Shape Shifter</div>
-          <div class="game-desc">Spatial reasoning challenges</div>
-          <span class="game-status status-play">▶ Play Now</span>
-        </a>
-
-        <a href="games/pattern-pulse.html" class="game-card ready" data-color="cyan">
-          <div class="game-icon">🌀</div>
-          <div class="game-name">Pattern Pulse</div>
-          <div class="game-desc">Spot the missing sequence</div>
-          <span class="game-status status-play">▶ Play Now</span>
-        </a>
-
-        <a href="games/quick-click.html" class="game-card ready" data-color="red">
-          <div class="game-icon">⚡</div>
-          <div class="game-name">Quick Click</div>
-          <div class="game-desc">Reaction speed and focus drill</div>
+        <a href="games/numeric-cascade.html" class="game-card ready" data-color="purple">
+          <div class="game-icon">🌊</div>
+          <div class="game-name">Numeric Cascade</div>
+          <div class="game-desc">Find numbers in order, against the clock</div>
           <span class="game-status status-play">▶ Play Now</span>
         </a>
 
         <div class="game-card locked">
           <div class="lock-badge">🔒</div>
-          <div class="game-icon">🧮</div>
-          <div class="game-name">Math Mania</div>
-          <div class="game-desc">Advanced equation solving</div>
+          <div class="game-icon">🔢</div>
+          <div class="game-name">Number Ninja</div>
+          <div class="game-desc">Lightning-fast mental arithmetic</div>
           <span class="game-status status-soon">Coming Soon</span>
         </div>
+
+        <div class="game-card locked">
+          <div class="lock-badge">🔒</div>
+          <div class="game-icon">📝</div>
+          <div class="game-name">Word Wizard</div>
+          <div class="game-desc">Verbal reasoning and vocabulary</div>
+          <span class="game-status status-soon">Coming Soon</span>
+        </div>
+
+        <div class="game-card locked">
+          <div class="lock-badge">🔒</div>
+          <div class="game-icon">🎯</div>
+          <div class="game-name">Memory Matrix</div>
+          <div class="game-desc">Test recall with visual patterns</div>
+          <span class="game-status status-soon">Coming Soon</span>
+        </div>
+
+        <a href="games/bargain-blitz.html" class="game-card ready" data-color="orange">
+          <div class="game-icon">🛒</div>
+          <div class="game-name">Bargain Blitz</div>
+          <div class="game-desc">Shop only the deals that beat the discount</div>
+          <span class="game-status status-play">▶ Play Now</span>
+        </a>
+
+        <div class="game-card locked">
+          <div class="lock-badge">🔒</div>
+          <div class="game-icon">🌀</div>
+          <div class="game-name">Pattern Pulse</div>
+          <div class="game-desc">Spot the missing sequence</div>
+          <span class="game-status status-soon">Coming Soon</span>
+        </div>
+
+        <div class="game-card locked">
+          <div class="lock-badge">🔒</div>
+          <div class="game-icon">⚡</div>
+          <div class="game-name">Quick Click</div>
+          <div class="game-desc">Reaction speed and focus drill</div>
+          <span class="game-status status-soon">Coming Soon</span>
+        </div>
+
+        <a href="games/flow-forge.html" class="game-card ready" data-color="cyan">
+          <div class="game-icon">🚰</div>
+          <div class="game-name">Flow Forge</div>
+          <div class="game-desc">Route water through rotating pipes</div>
+          <span class="game-status status-play">▶ Play Now</span>
+        </a>
 
         <div class="game-card locked">
           <div class="lock-badge">🔒</div>
@@ -401,19 +585,53 @@
           <span class="game-status status-soon">Coming Soon</span>
         </div>
 
-        <div class="game-card locked">
-          <div class="lock-badge">🔒</div>
-          <div class="game-icon">💡</div>
-          <div class="game-name">Focus Flash</div>
-          <div class="game-desc">Attention and concentration test</div>
-          <span class="game-status status-soon">Coming Soon</span>
-        </div>
+        <a href="games/phantom-path.html" class="game-card ready" data-color="purple">
+          <div class="game-icon">👻</div>
+          <div class="game-name">Phantom Path</div>
+          <div class="game-desc">Forecast the phantom's next column</div>
+          <span class="game-status status-play">▶ Play Now</span>
+        </a>
 
       </div>
     </section>
 
+    <section id="high-score">
+      <h2 class="section-title">High Scores</h2>
+      <p class="section-sub">Your top 3 best per game and the last 10 plays across all games.</p>
+
+      <div class="hs-grid" id="hs-per-game"></div>
+
+      <h3 class="hs-subtitle">Recent Plays</h3>
+      <div class="hs-recent-card">
+        <table class="hs-recent-table" id="hs-recent">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Game</th>
+              <th>Score</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="hs-empty" id="hs-recent-empty" hidden>No runs yet — finish a game to see them here.</div>
+      </div>
+    </section>
+
+    <section id="settings">
+      <h2 class="section-title">Settings</h2>
+      <p class="section-sub">Manage your locally-stored high scores and play history.</p>
+
+      <div class="settings-card">
+        <div class="settings-text">
+          <div class="settings-title">Reset High Scores &amp; History</div>
+          <div class="settings-desc">Permanently clears all top-3 scores and the recent plays list for every game. This can't be undone.</div>
+        </div>
+        <button class="btn-danger-hub" id="btn-reset-history" type="button">Reset Now</button>
+      </div>
+    </section>
+
     <footer>
-      <p>© 2026 BrainArena — Aptitude Training Platform · Built for curious minds.</p>
+      <p>© 2026 Synapse — Aptitude Training Platform · Spark Your Thinking.</p>
     </footer>
   </div>
 
@@ -428,6 +646,123 @@
         alert(`"${name}" is coming soon! Stay tuned.`);
       });
     });
+
+    // High Scores + Settings — reads each game's localStorage session log,
+    // computes top-3 per game and the latest 10 runs across all games.
+    (function () {
+      const HS_GAMES = [
+        { key: "numericCascade", name: "Numeric Cascade", icon: "🌊", color: "purple" },
+        { key: "bargainBlitz",   name: "Bargain Blitz",   icon: "🛒", color: "orange" },
+        { key: "flowForge",      name: "Flow Forge",      icon: "🚰", color: "cyan"   },
+        { key: "phantomPath",    name: "Phantom Path",    icon: "👻", color: "purple" },
+      ];
+
+      const loadSessions = (key) => {
+        try {
+          const raw = localStorage.getItem(key + ".sessions");
+          const arr = raw ? JSON.parse(raw) : [];
+          return Array.isArray(arr) ? arr : [];
+        } catch (e) {
+          return [];
+        }
+      };
+
+      const fmtRelative = (iso) => {
+        if (!iso) return "—";
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return iso;
+        const diff = Date.now() - d.getTime();
+        if (diff < 0) return d.toLocaleString();
+        const SEC = 1000, MIN = 60 * SEC, HR = 60 * MIN, DAY = 24 * HR;
+        if (diff < MIN)   return "just now";
+        if (diff < HR)    return Math.floor(diff / MIN) + " min ago";
+        if (diff < DAY)   return Math.floor(diff / HR)  + " hr ago";
+        if (diff < 7*DAY) return Math.floor(diff / DAY) + " d ago";
+        return d.toLocaleDateString();
+      };
+
+      const renderHighScores = () => {
+        const grid = document.getElementById("hs-per-game");
+        if (grid) {
+          grid.innerHTML = "";
+          for (const g of HS_GAMES) {
+            const sessions = loadSessions(g.key);
+            const top3 = sessions
+              .filter(s => typeof s.final_score === "number")
+              .sort((a, b) => b.final_score - a.final_score)
+              .slice(0, 3);
+            const card = document.createElement("div");
+            card.className = "hs-card";
+            card.setAttribute("data-color", g.color);
+            const li = (rank, score) =>
+              `<li class="${score === null ? "empty" : ""}"><span class="rank">#${rank}</span><span class="score">${score === null ? "—" : score}</span></li>`;
+            card.innerHTML =
+              `<div class="hs-card-head">
+                 <div class="hs-card-icon">${g.icon}</div>
+                 <div class="hs-card-name">${g.name}</div>
+               </div>
+               <ul class="hs-list">
+                 ${[1, 2, 3].map(i => li(i, top3[i - 1] ? top3[i - 1].final_score : null)).join("")}
+               </ul>`;
+            grid.appendChild(card);
+          }
+        }
+
+        // Latest 10 plays across all games.
+        const all = [];
+        for (const g of HS_GAMES) {
+          for (const s of loadSessions(g.key)) {
+            if (s && s.started_at) all.push({ s: s, meta: g });
+          }
+        }
+        all.sort((a, b) => new Date(b.s.started_at) - new Date(a.s.started_at));
+        const recent = all.slice(0, 10);
+
+        const tbody = document.querySelector("#hs-recent tbody");
+        const tableEl = document.getElementById("hs-recent");
+        const emptyMsg = document.getElementById("hs-recent-empty");
+        if (tbody && tableEl && emptyMsg) {
+          tbody.innerHTML = "";
+          if (recent.length === 0) {
+            tableEl.hidden = true;
+            emptyMsg.hidden = false;
+          } else {
+            tableEl.hidden = false;
+            emptyMsg.hidden = true;
+            for (const { s, meta } of recent) {
+              const tr = document.createElement("tr");
+              const score = (typeof s.final_score === "number") ? s.final_score : "—";
+              tr.innerHTML =
+                `<td>${fmtRelative(s.started_at)}</td>` +
+                `<td>${meta.icon} ${meta.name}</td>` +
+                `<td>${score}</td>`;
+              tbody.appendChild(tr);
+            }
+          }
+        }
+      };
+
+      const resetAllHistory = () => {
+        const ok = window.confirm(
+          "Reset all high scores and play history?\n\nThis permanently clears every game's saved sessions on this browser and cannot be undone."
+        );
+        if (!ok) return;
+        for (const g of HS_GAMES) {
+          try { localStorage.removeItem(g.key + ".sessions"); } catch (e) {}
+        }
+        renderHighScores();
+      };
+
+      const resetBtn = document.getElementById("btn-reset-history");
+      if (resetBtn) resetBtn.addEventListener("click", resetAllHistory);
+
+      // Refresh on load and whenever the page becomes visible again (e.g. after
+      // returning from a game tab).
+      renderHighScores();
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) renderHighScores();
+      });
+    })();
   </script>
 </body>
 </html>

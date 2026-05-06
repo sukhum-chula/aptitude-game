@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bargain Blitz — Synapse</title>
+<link rel="stylesheet" href="../assets/css/theme.css" />
+<style>
+  /* Layout overrides for Bargain Blitz. */
+  .game-stage { padding: 8px 24px 40px; align-items: flex-start; }
+  .bb-shell {
+    width: 100%;
+    max-width: 1080px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .screen { display: none; }
+  .screen.active { display: flex; flex-direction: column; gap: 16px; }
+
+  /* ---------- Intro ---------- */
+  .intro-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 24px;
+    padding: 36px 32px;
+    backdrop-filter: blur(10px);
+    text-align: center;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .intro-icon {
+    width: 96px; height: 96px;
+    margin: 0 auto 18px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, #fb923c, #ea580c);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 48px;
+    box-shadow: 0 10px 30px rgba(234, 88, 12, 0.35);
+  }
+  .intro-card h1 { font-size: 32px; font-weight: 800; margin-bottom: 8px; }
+  .intro-skill {
+    color: var(--muted); font-size: 12px;
+    text-transform: uppercase; letter-spacing: 1.6px;
+    margin-bottom: 18px;
+  }
+  .intro-blurb {
+    color: var(--muted); font-size: 15px; line-height: 1.65;
+    max-width: 540px; margin: 0 auto 26px;
+  }
+  .how-to {
+    text-align: left;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 22px 24px;
+    margin-bottom: 22px;
+  }
+  .how-to h2 {
+    font-size: 14px; text-transform: uppercase; letter-spacing: 2px;
+    color: var(--accent); margin-bottom: 14px;
+  }
+  .how-to ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .how-to li {
+    color: var(--text); font-size: 14px; line-height: 1.55;
+    padding-left: 26px; position: relative;
+  }
+  .how-to li::before {
+    content: "›"; position: absolute; left: 8px; top: 0;
+    color: var(--accent-2); font-weight: 700; font-size: 16px;
+  }
+  .how-to li b { color: var(--text); font-weight: 600; }
+  .how-to li code {
+    background: rgba(99, 102, 241, 0.15); color: #c7d2fe;
+    padding: 1px 6px; border-radius: 4px; font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .start-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+  /* ---------- HUD ---------- */
+  .hud {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr) auto;
+    gap: 10px; align-items: stretch;
+  }
+  .hud-cell {
+    background: var(--card); border: 1px solid var(--card-border);
+    border-radius: 14px; padding: 10px 8px;
+    text-align: center; backdrop-filter: blur(10px);
+  }
+  .hud-cell.threshold {
+    background: linear-gradient(135deg, rgba(251, 146, 60, 0.18), rgba(234, 88, 12, 0.18));
+    border-color: rgba(251, 146, 60, 0.4);
+  }
+  .hud-label {
+    font-size: 10px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 4px;
+  }
+  .hud-value { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  #timer.danger { color: #f87171; }
+  #timer.pulsing { animation: bbPulse 0.8s ease-in-out infinite; }
+  @keyframes bbPulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.08); }
+  }
+  .hud-actions { display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+  .hud-btn {
+    background: var(--card); border: 1px solid var(--card-border);
+    color: var(--text); padding: 6px 12px;
+    border-radius: 10px; cursor: pointer;
+    font-family: inherit; font-size: 12px; font-weight: 600;
+    transition: all 0.15s;
+  }
+  .hud-btn:hover { border-color: var(--accent); background: rgba(99, 102, 241, 0.1); }
+
+  /* ---------- Criteria banner ---------- */
+  .banner {
+    background: linear-gradient(135deg, rgba(251, 146, 60, 0.12), rgba(234, 88, 12, 0.08)), var(--card);
+    border: 1px solid rgba(251, 146, 60, 0.3);
+    border-radius: 16px;
+    padding: 18px 24px;
+    text-align: center;
+    backdrop-filter: blur(10px);
+  }
+  .banner-text {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.3;
+  }
+  .banner-text .pct {
+    background: linear-gradient(135deg, #fed7aa, #fb923c);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 28px;
+    font-weight: 800;
+    margin: 0 4px;
+  }
+  .banner.flash { animation: bbBannerPulse 0.6s ease-out; }
+  @keyframes bbBannerPulse {
+    0%   { transform: scale(0.96); }
+    50%  { transform: scale(1.02); }
+    100% { transform: scale(1); }
+  }
+
+  /* ---------- Play area ---------- */
+  .play-area {
+    display: grid;
+    grid-template-columns: minmax(160px, 220px) minmax(0, 1fr) minmax(160px, 220px);
+    gap: 16px;
+    align-items: start;
+  }
+  .side-col {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 14px;
+    backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 560px;
+  }
+  .side-col h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  .side-col.cart { border-color: rgba(74, 222, 128, 0.3); }
+  .side-col.cart h3 { color: #4ade80; }
+  .side-col.returns { border-color: rgba(248, 113, 113, 0.3); }
+  .side-col.returns h3 { color: #f87171; }
+  .side-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+  }
+  .side-list::-webkit-scrollbar { width: 6px; }
+  .side-list::-webkit-scrollbar-track { background: transparent; }
+  .side-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+  .side-row {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    animation: bbSlideIn 0.3s ease-out;
+  }
+  .side-col.cart .side-row { border-color: rgba(74, 222, 128, 0.2); }
+  .side-col.returns .side-row { border-color: rgba(248, 113, 113, 0.2); }
+  .side-row .icon { font-size: 20px; flex-shrink: 0; }
+  .side-row .prices {
+    display: flex; flex-direction: column; line-height: 1.2;
+    flex: 1; min-width: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .side-row .full {
+    color: var(--muted); text-decoration: line-through; font-size: 11px;
+  }
+  .side-row .reduced { color: #fca5a5; font-weight: 700; font-size: 12px; }
+  .side-col.cart .side-row .reduced { color: #86efac; }
+  .side-row .pct {
+    font-size: 11px; color: var(--muted); font-weight: 600;
+    flex-shrink: 0;
+  }
+  @keyframes bbSlideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .shelf-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 14px;
+    backdrop-filter: blur(10px);
+  }
+  .shelf {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .shelf-cell {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    aspect-ratio: 1 / 1;
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    transition: transform 0.12s, border-color 0.12s, background 0.18s, opacity 0.25s;
+    backdrop-filter: blur(10px);
+    padding: 6px;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .shelf-cell:not(:disabled):hover {
+    transform: translateY(-2px) scale(1.03);
+    border-color: rgba(251, 146, 60, 0.5);
+    background: rgba(251, 146, 60, 0.08);
+    box-shadow: 0 6px 18px rgba(251, 146, 60, 0.18);
+  }
+  .shelf-cell .item {
+    font-size: clamp(28px, 4.5vw, 40px);
+    line-height: 1;
+    margin-top: 4px;
+  }
+  .shelf-cell .price-tag {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .shelf-cell .price-full,
+  .shelf-cell .price-reduced {
+    background: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .shelf-cell .price-full    { color: #0f172a; }
+  .shelf-cell .price-reduced { color: #dc2626; }
+  .shelf-cell.flash-correct {
+    background: rgba(74, 222, 128, 0.3);
+    border-color: #4ade80;
+    box-shadow: 0 0 18px rgba(74, 222, 128, 0.5);
+  }
+  .shelf-cell.flash-wrong {
+    background: rgba(248, 113, 113, 0.3);
+    border-color: #f87171;
+    box-shadow: 0 0 18px rgba(248, 113, 113, 0.5);
+  }
+  .shelf-cell.sliding-out {
+    opacity: 0;
+    transform: scale(0.7) translateX(0);
+  }
+  .shelf-cell.sliding-out.cart   { transform: scale(0.7) translateX(60%); }
+  .shelf-cell.sliding-out.returns { transform: scale(0.7) translateX(-60%); }
+  .shelf-cell.cleared {
+    visibility: hidden;
+  }
+
+  .next-row {
+    display: flex; justify-content: flex-end; gap: 12px; align-items: center;
+  }
+  .next-summary {
+    color: var(--muted); font-size: 13px; margin-right: auto;
+  }
+  .btn-next {
+    background: linear-gradient(135deg, #fb923c, #ea580c);
+    color: white; border: none;
+    padding: 12px 28px; border-radius: 12px; cursor: pointer;
+    font-size: 15px; font-weight: 700; font-family: inherit;
+    box-shadow: 0 6px 18px rgba(234, 88, 12, 0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .btn-next:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(234, 88, 12, 0.45); }
+
+  /* ---------- Overlays / modals ---------- */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; padding: 24px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  .overlay-card {
+    background: linear-gradient(135deg, rgba(251, 146, 60, 0.15), rgba(234, 88, 12, 0.10)), var(--bg-2);
+    border: 1px solid var(--card-border);
+    border-radius: 24px;
+    padding: 36px 28px;
+    max-width: 520px; width: 100%;
+    text-align: center;
+  }
+  .overlay-card h2 { font-size: 26px; margin-bottom: 6px; }
+  .overlay-card .subtitle { color: var(--muted); margin-bottom: 22px; font-size: 14px; }
+
+  .stat-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 10px; margin-bottom: 22px;
+  }
+  .stat-tile {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--card-border);
+    border-radius: 12px; padding: 14px;
+  }
+  .stat-tile .label {
+    font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .stat-tile .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .round-table {
+    width: 100%; border-collapse: collapse;
+    margin-bottom: 22px; font-size: 13px;
+  }
+  .round-table th, .round-table td {
+    padding: 7px 8px; text-align: center;
+    border-bottom: 1px solid var(--card-border);
+  }
+  .round-table th { color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; }
+  .round-table td { color: var(--text); font-variant-numeric: tabular-nums; }
+  .round-table td:first-child { color: var(--muted); }
+
+  .modal-actions {
+    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #fb923c, #ea580c);
+    color: white; border: none;
+    padding: 11px 26px; border-radius: 12px; cursor: pointer;
+    font-size: 15px; font-weight: 600; font-family: inherit;
+    transition: transform 0.2s;
+  }
+  .btn-primary:hover { transform: translateY(-2px); }
+  .btn-secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--card-border);
+    padding: 11px 26px; border-radius: 12px; cursor: pointer;
+    font-size: 15px; font-weight: 500;
+    text-decoration: none;
+    display: inline-flex; align-items: center;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .btn-secondary:hover { border-color: var(--accent); background: rgba(99, 102, 241, 0.08); }
+  .btn-danger {
+    background: rgba(248, 113, 113, 0.2);
+    color: #fca5a5;
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    padding: 11px 26px; border-radius: 12px; cursor: pointer;
+    font-size: 15px; font-weight: 500; font-family: inherit;
+    transition: all 0.15s;
+  }
+  .btn-danger:hover { background: rgba(248, 113, 113, 0.3); border-color: #f87171; }
+
+  .round-transition .overlay-card { max-width: 380px; padding: 32px 24px; }
+  .round-transition .big {
+    font-size: 36px; font-weight: 800;
+    background: linear-gradient(135deg, #fed7aa, #fff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 6px;
+  }
+  .round-transition .summary {
+    color: var(--muted); font-size: 14px; margin-bottom: 6px;
+  }
+  .round-transition .countdown { font-size: 13px; color: var(--muted); margin-top: 14px; }
+
+  @media (max-width: 880px) {
+    .play-area { grid-template-columns: 1fr; }
+    .side-col { max-height: 240px; flex-direction: row; gap: 8px; }
+    .side-col h3 { writing-mode: horizontal-tb; min-width: 70px; align-self: center; }
+    .side-list { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; }
+    .side-row { flex-shrink: 0; min-width: 140px; }
+    .hud { grid-template-columns: repeat(2, 1fr); }
+    .hud-actions { grid-column: span 2; flex-direction: row; justify-content: center; }
+    .banner-text { font-size: 16px; }
+    .banner-text .pct { font-size: 22px; }
+    .intro-card h1 { font-size: 26px; }
+  }
+</style>
+</head>
+<body data-color="orange">
+  <div class="bg-decoration one"></div>
+  <div class="bg-decoration two"></div>
+
+  <header class="page-header">
+    <a href="../index.html" class="logo">
+      <div class="logo-icon">🧠</div>
+      <span>Synapse</span>
+    </a>
+    <a href="../index.html" class="back-link">← Back to Hub</a>
+  </header>
+
+  <main class="game-stage">
+    <div class="bb-shell">
+      <!-- ============ INTRO ============ -->
+      <section class="screen active" id="screen-intro">
+        <div class="intro-card">
+          <div class="intro-icon">🛒</div>
+          <h1>Bargain Blitz</h1>
+          <div class="intro-skill">Mental Math · Percentage Estimation · Speed</div>
+          <p class="intro-blurb">
+            A 4×5 shelf is stocked with marked-down items. Every round picks a
+            new discount threshold — your job is to grab only the deals that
+            actually beat it. Misjudge the percentage and the wrong item lands
+            in your Returns pile. Five minutes, as many rounds as you can clear.
+          </p>
+
+          <div class="how-to">
+            <h2>How to Play</h2>
+            <ul>
+              <li><b>Read the banner.</b> Each round shows the threshold — e.g. <i>"under 25% of full price."</i></li>
+              <li><b>Pick the deals.</b> Click items whose <span style="color:#fca5a5;font-weight:700">red</span> price beats the threshold. Correct picks slide to <b>Cart</b>; wrong picks slide to <b>Returns</b>.</li>
+              <li><b>Score.</b> Correct +1, wrong picks cost nothing — they just clutter your Returns. Clear every passing item with no mistakes for a <b>+3</b> round bonus.</li>
+              <li><b>Tap NEXT ROUND</b> any time to skip remaining items and load a fresh shelf.</li>
+              <li><b>5-minute clock.</b> Round 1 is gentle (50%); rounds 2–5 tighten to 20–25%; rounds 6+ mix all four (10/20/25/50%).</li>
+            </ul>
+          </div>
+
+          <div class="start-row">
+            <button class="btn-primary" id="btn-start" type="button">Start Game</button>
+            <a class="btn-secondary" href="../index.html">Back to Hub</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ GAME ============ -->
+      <section class="screen" id="screen-game">
+        <div class="hud">
+          <div class="hud-cell">
+            <div class="hud-label">Round</div>
+            <div class="hud-value" id="hud-round">1</div>
+          </div>
+          <div class="hud-cell">
+            <div class="hud-label">Score</div>
+            <div class="hud-value" id="hud-score">0</div>
+          </div>
+          <div class="hud-cell">
+            <div class="hud-label">Streak</div>
+            <div class="hud-value" id="hud-streak">0</div>
+          </div>
+          <div class="hud-cell">
+            <div class="hud-label">Time</div>
+            <div class="hud-value" id="timer">5:00</div>
+          </div>
+          <div class="hud-actions">
+            <button class="hud-btn" id="btn-pause" type="button">Pause</button>
+            <button class="hud-btn" id="btn-reset" type="button">Reset</button>
+          </div>
+        </div>
+
+        <div class="banner" id="banner">
+          <div class="banner-text" id="banner-text">🛒 Pick items where reduced price is <span class="pct">&lt; 50%</span> of full price</div>
+        </div>
+
+        <div class="play-area">
+          <div class="side-col returns">
+            <h3>✗ Returns</h3>
+            <div class="side-list" id="returns-list"></div>
+          </div>
+          <div class="shelf-card">
+            <div class="shelf" id="shelf"></div>
+          </div>
+          <div class="side-col cart">
+            <h3>✓ Cart</h3>
+            <div class="side-list" id="cart-list"></div>
+          </div>
+        </div>
+
+        <div class="next-row">
+          <span class="next-summary" id="next-summary">Click items that beat the threshold.</span>
+          <button class="btn-next" id="btn-next" type="button">▶ Next Round</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ============ ROUND TRANSITION ============ -->
+  <div class="overlay round-transition" id="overlay-transition">
+    <div class="overlay-card">
+      <div class="big" id="trans-title">Round 2</div>
+      <div class="summary" id="trans-summary">Round 1: 8 correct · 2 wrong · score 9</div>
+      <div class="subtitle" id="trans-threshold">Next threshold: under 25%</div>
+      <div class="countdown" id="trans-countdown">Starting…</div>
+    </div>
+  </div>
+
+  <!-- ============ PAUSE ============ -->
+  <div class="overlay" id="overlay-pause">
+    <div class="overlay-card">
+      <h2>Paused</h2>
+      <div class="subtitle">Click Resume to continue.</div>
+      <div class="modal-actions">
+        <button class="btn-primary" id="btn-resume" type="button">Resume</button>
+        <button class="btn-danger" id="btn-pause-reset" type="button">Reset Game</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ RESET CONFIRM ============ -->
+  <div class="overlay" id="overlay-reset">
+    <div class="overlay-card">
+      <h2>Reset the game?</h2>
+      <div class="subtitle">Your current progress will be lost.</div>
+      <div class="modal-actions">
+        <button class="btn-danger" id="btn-reset-confirm" type="button">Yes, Reset</button>
+        <button class="btn-secondary" id="btn-reset-cancel" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ END SCREEN ============ -->
+  <div class="overlay" id="overlay-end">
+    <div class="overlay-card">
+      <h2 id="end-title">Time's up.</h2>
+      <div class="subtitle" id="end-subtitle"></div>
+      <div class="stat-grid">
+        <div class="stat-tile"><div class="label">Final Score</div><div class="value" id="end-score">0</div></div>
+        <div class="stat-tile"><div class="label">Accuracy</div><div class="value" id="end-accuracy">0%</div></div>
+        <div class="stat-tile"><div class="label">Rounds</div><div class="value" id="end-rounds">0</div></div>
+        <div class="stat-tile"><div class="label">Best Streak</div><div class="value" id="end-best-streak">0</div></div>
+      </div>
+      <table class="round-table" id="end-round-table">
+        <thead>
+          <tr><th>Round</th><th>Threshold</th><th>Correct</th><th>Wrong</th><th>Score</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="modal-actions">
+        <button class="btn-primary" id="btn-play-again" type="button">Play Again</button>
+        <a class="btn-secondary" href="../index.html">Back to Hub</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  /* ============================================================
+     Bargain Blitz — implementation per games/bargain-blitz.md
+     ============================================================ */
+  (() => {
+    const TOTAL_GAME_MS    = 5 * 60 * 1000;
+    const TRANSITION_MS    = 1000;
+    const SLIDE_MS         = 300;
+    const ROUND_CLEAR_BONUS= 3;
+    const TIME_BONUS_PER_S = 0.2; // 1 pt per 5 s remaining → max ~+60
+    const SHELF_COUNT      = 20;
+    const SESSION_LIMIT    = 20;
+
+    // 40-item pool — emoji-based, no external assets.
+    const POOL = [
+      "🥖","🍕","🍎","🍌","🍔","🌮","🍣","🥗","🍪","🥛",
+      "👕","👖","👗","👟","🧥","🧦","👒","👜","🥾","🧤",
+      "📱","💻","🎧","📷","⌚","🖥️","⌨️","🎮",
+      "🛏️","🪑","🛋️","💡","🧴","🍳","🪞",
+      "🧸","⚽","🎲","🧩","📚",
+    ];
+
+    const el = (id) => document.getElementById(id);
+    const $ = {
+      screenIntro:  el("screen-intro"),
+      screenGame:   el("screen-game"),
+      btnStart:     el("btn-start"),
+      hudRound:     el("hud-round"),
+      hudScore:     el("hud-score"),
+      hudStreak:    el("hud-streak"),
+      timer:        el("timer"),
+      banner:       el("banner"),
+      bannerText:   el("banner-text"),
+      shelf:        el("shelf"),
+      cartList:     el("cart-list"),
+      returnsList:  el("returns-list"),
+      btnNext:      el("btn-next"),
+      btnPause:     el("btn-pause"),
+      btnReset:     el("btn-reset"),
+      nextSummary:  el("next-summary"),
+      ovTransition: el("overlay-transition"),
+      transTitle:   el("trans-title"),
+      transSummary: el("trans-summary"),
+      transThreshold: el("trans-threshold"),
+      transCountdown: el("trans-countdown"),
+      ovPause:      el("overlay-pause"),
+      btnResume:    el("btn-resume"),
+      btnPauseReset:el("btn-pause-reset"),
+      ovReset:      el("overlay-reset"),
+      btnResetConfirm: el("btn-reset-confirm"),
+      btnResetCancel:  el("btn-reset-cancel"),
+      ovEnd:        el("overlay-end"),
+      endTitle:     el("end-title"),
+      endSubtitle:  el("end-subtitle"),
+      endScore:     el("end-score"),
+      endAccuracy:  el("end-accuracy"),
+      endRounds:    el("end-rounds"),
+      endBestStreak:el("end-best-streak"),
+      endRoundTable:el("end-round-table").querySelector("tbody"),
+      btnPlayAgain: el("btn-play-again"),
+    };
+
+    /* ----- State ----- */
+    const state = {
+      phase: "intro",  // intro | running | transition | paused | resetConfirm | over
+
+      sessionId: null,
+      sessionStartedAt: null,
+      sessionEndedAt:   null,
+      endedReason:      null,
+
+      roundNo: 0,
+      threshold: 50,             // current round's percentage threshold
+      shelf: [],                 // array of { slot, item, full, reduced, passes, clicked }
+      cart: [],                  // visible cart entries
+      returns: [],               // visible returns entries
+      roundStartedAt: null,
+      roundStartElapsed: 0,
+      roundCorrect: 0,
+      roundWrong: 0,
+      roundActions: [],
+      passingTotal: 0,           // total passing items in shelf at round start
+
+      totalScore: 0,
+      streak: 0,
+      bestStreak: 0,
+      totalCorrect: 0,
+      totalWrong: 0,
+      rounds: [],
+
+      remainingMs: TOTAL_GAME_MS,
+      lastTickRT: 0,
+      rafId: null,
+
+      pauseAt: 0,
+      _prePausePhase: null,
+    };
+
+    /* ----- Helpers ----- */
+    const randInt = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+    const choose  = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const shuffle = (arr) => {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
+    const fmtTime = (ms) => {
+      const s = Math.max(0, Math.ceil(ms / 1000));
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    };
+    const newSessionId = () =>
+      (crypto.randomUUID && crypto.randomUUID()) ||
+      `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    const showOverlay = (overlayEl, on) => overlayEl.classList.toggle("show", !!on);
+    const setScreen = (name) => {
+      $.screenIntro.classList.toggle("active", name === "intro");
+      $.screenGame.classList.toggle("active", name !== "intro");
+    };
+    const itemPasses = (full, reduced, thresholdPct) =>
+      reduced < (thresholdPct / 100) * full;
+
+    /* ----- Pricing & shelf generation ----- */
+    const pickThreshold = (roundNo) => {
+      if (roundNo === 1) return 50;
+      if (roundNo <= 5)  return choose([25, 20]);
+      return choose([50, 25, 20, 10]);
+    };
+    const PASSERS_PER_ROUND = 5;
+
+    // Pick a full price in the round's allowed range, large enough to support
+    // the requested pass/fail outcome (so cutoff >= 2 when wantPass is true).
+    const randomFullPrice = (roundNo, thresholdPct, wantPass) => {
+      let lo, hi;
+      if (roundNo <= 3) {
+        lo = roundNo === 1 ? 50  : 10;
+        hi = roundNo === 1 ? 500 : 999;
+      } else {
+        lo = 10;
+        hi = 999;
+      }
+      // For passing items we need floor((threshold/100) * full) >= 2 so there's
+      // at least one valid reduced price strictly below the cutoff.
+      if (wantPass) {
+        lo = Math.max(lo, Math.ceil(200 / thresholdPct));
+      }
+      if (roundNo <= 3) {
+        // Constrain to multiples of 5 (last digit 0 or 5).
+        const lo5 = Math.ceil(lo / 5) * 5;
+        const hi5 = Math.floor(hi / 5) * 5;
+        const steps = Math.max(0, (hi5 - lo5) / 5);
+        return lo5 + 5 * randInt(0, steps);
+      }
+      return randInt(lo, hi);
+    };
+
+    const randomReducedPrice = (full, thresholdPct, wantPass) => {
+      const cutoff = Math.floor((thresholdPct / 100) * full);  // strict pass: reduced < cutoff
+      if (wantPass) {
+        return randInt(1, Math.max(1, cutoff - 1));
+      }
+      const lo = Math.max(cutoff, 1);
+      const hi = Math.max(lo, full - 1);
+      return randInt(lo, hi);
+    };
+
+    const generateShelf = (roundNo, thresholdPct) => {
+      const items = shuffle(POOL).slice(0, SHELF_COUNT);
+      // Exactly PASSERS_PER_ROUND passing items, the rest fail. Shuffled so
+      // the passers land in random slots.
+      const passFlags = shuffle(
+        Array.from({ length: SHELF_COUNT }, (_, i) => i < PASSERS_PER_ROUND)
+      );
+      const shelf = [];
+      for (let i = 0; i < SHELF_COUNT; i++) {
+        const wantPass = passFlags[i];
+        const full     = randomFullPrice(roundNo, thresholdPct, wantPass);
+        const reduced  = randomReducedPrice(full, thresholdPct, wantPass);
+        const passes   = itemPasses(full, reduced, thresholdPct);
+        shelf.push({
+          slot: i,
+          item: items[i],
+          full,
+          reduced,
+          passes,
+          clicked: false,
+        });
+      }
+      return shelf;
+    };
+
+    /* ----- Rendering ----- */
+    const renderBanner = () => {
+      $.bannerText.innerHTML =
+        `🛒 Pick items where reduced price is <span class="pct">&lt; ${state.threshold}%</span> of full price`;
+      $.banner.classList.remove("flash");
+      // Force reflow so the animation re-triggers.
+      void $.banner.offsetWidth;
+      $.banner.classList.add("flash");
+    };
+    const renderShelf = () => {
+      $.shelf.innerHTML = "";
+      for (const cell of state.shelf) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "shelf-cell";
+        btn.dataset.slot = String(cell.slot);
+        btn.innerHTML = `
+          <div class="price-tag">
+            <div class="price-full">${cell.full}</div>
+            <div class="price-reduced">${cell.reduced}</div>
+          </div>
+          <div class="item">${cell.item}</div>
+        `;
+        btn.addEventListener("click", onShelfClick);
+        $.shelf.appendChild(btn);
+      }
+    };
+    const renderHUD = () => {
+      $.hudRound.textContent  = String(state.roundNo || 1);
+      $.hudScore.textContent  = String(state.totalScore);
+      $.hudStreak.textContent = String(state.streak);
+      $.timer.textContent     = fmtTime(state.remainingMs);
+      $.timer.classList.toggle("danger",  state.remainingMs <= 30 * 1000);
+      $.timer.classList.toggle("pulsing", state.remainingMs <= 10 * 1000);
+    };
+    const updateNextSummary = () => {
+      const remaining = state.shelf.filter((c) => !c.clicked).length;
+      $.nextSummary.textContent =
+        `Round ${state.roundNo} · ${remaining} item${remaining === 1 ? "" : "s"} left · ${state.roundCorrect}/${PASSERS_PER_ROUND} found · ${state.roundWrong} wrong`;
+    };
+    const appendSideRow = (listEl, cell, kind /* "cart" | "returns" */) => {
+      const pct = Math.round((cell.reduced / cell.full) * 100);
+      const row = document.createElement("div");
+      row.className = "side-row";
+      row.innerHTML = `
+        <div class="icon">${cell.item}</div>
+        <div class="prices">
+          <span class="full">${cell.full}</span>
+          <span class="reduced">${cell.reduced}</span>
+        </div>
+        <div class="pct">−${100 - pct}%</div>
+      `;
+      listEl.appendChild(row);
+      // Auto-scroll the list to the latest entry.
+      listEl.scrollTop = listEl.scrollHeight;
+    };
+    const clearSideLists = () => {
+      $.cartList.innerHTML = "";
+      $.returnsList.innerHTML = "";
+      state.cart = [];
+      state.returns = [];
+    };
+
+    /* ----- Round / game lifecycle ----- */
+    const startGame = () => {
+      state.sessionId        = newSessionId();
+      state.sessionStartedAt = new Date().toISOString();
+      state.sessionEndedAt   = null;
+      state.endedReason      = null;
+      state.totalScore       = 0;
+      state.totalCorrect     = 0;
+      state.totalWrong       = 0;
+      state.streak           = 0;
+      state.bestStreak       = 0;
+      state.rounds           = [];
+      state.remainingMs      = TOTAL_GAME_MS;
+      state.roundNo          = 0;
+
+      setScreen("game");
+      state.phase = "running";
+      state.lastTickRT = performance.now();
+      requestAnimationFrame(tick);
+      beginRound(1);
+    };
+
+    const beginRound = (n) => {
+      if (state.remainingMs <= 0) {
+        finishGame("timeout");
+        return;
+      }
+      state.roundNo  = n;
+      state.threshold = pickThreshold(n);
+      state.shelf    = generateShelf(n, state.threshold);
+      state.passingTotal  = state.shelf.filter((c) => c.passes).length;
+      state.roundStartedAt   = new Date().toISOString();
+      state.roundStartElapsed= TOTAL_GAME_MS - state.remainingMs;
+      state.roundCorrect = 0;
+      state.roundWrong   = 0;
+      state.roundActions = [];
+
+      clearSideLists();
+      renderBanner();
+      renderShelf();
+      renderHUD();
+      updateNextSummary();
+    };
+
+    const endRound = (reason /* completed | next | timeout | reset */) => {
+      const endedAt = new Date().toISOString();
+      const elapsedAtEnd = TOTAL_GAME_MS - state.remainingMs;
+      const durationMs = elapsedAtEnd - state.roundStartElapsed;
+
+      // Round-clear bonus: clicked every passing item AND no wrong picks.
+      const allPassersClicked = state.shelf
+        .filter((c) => c.passes)
+        .every((c) => c.clicked);
+      const cleared = allPassersClicked && state.roundWrong === 0;
+      let roundBonus = 0;
+      if (cleared) {
+        roundBonus = ROUND_CLEAR_BONUS;
+        state.totalScore += roundBonus;
+      }
+
+      const skippedSlots = state.shelf
+        .filter((c) => !c.clicked)
+        .map((c) => c.slot);
+
+      state.rounds.push({
+        round_no: state.roundNo,
+        threshold_pct: state.threshold,
+        started_at: state.roundStartedAt,
+        ended_at: endedAt,
+        duration_ms: durationMs,
+        passing_total: state.passingTotal,
+        correct: state.roundCorrect,
+        wrong:   state.roundWrong,
+        round_bonus: roundBonus,
+        score: state.roundCorrect + roundBonus,
+        ended_reason: reason,
+        shelf: state.shelf.map((c) => ({
+          slot: c.slot, item: c.item, full: c.full, reduced: c.reduced, passes: c.passes,
+        })),
+        actions: state.roundActions.slice(),
+        skipped_slots: skippedSlots,
+      });
+
+      if (reason === "timeout") {
+        finishGame("timeout");
+      } else if (reason === "reset") {
+        // confirmReset finalizes via finishGame separately.
+      } else {
+        showRoundTransition(state.roundNo + 1, cleared, roundBonus);
+      }
+    };
+
+    const showRoundTransition = (nextRound, cleared, bonus) => {
+      state.phase = "transition";
+      const summaryParts = [
+        `Round ${state.roundNo}`,
+        `${state.roundCorrect} correct`,
+        `${state.roundWrong} wrong`,
+      ];
+      if (cleared && bonus > 0) summaryParts.push(`Clean sweep +${bonus}`);
+      $.transTitle.textContent    = `Round ${nextRound}`;
+      $.transSummary.textContent  = summaryParts.join(" · ");
+      const nextThreshold = pickThreshold(nextRound);
+      // Pre-pick threshold so the transition shows it; pass it forward via a transient.
+      state._pendingThreshold = nextThreshold;
+      $.transThreshold.textContent= `Next threshold: under ${nextThreshold}% of full price`;
+      $.transCountdown.textContent= `Starting in 1.0s…`;
+      showOverlay($.ovTransition, true);
+      setTimeout(() => {
+        showOverlay($.ovTransition, false);
+        // Use the pre-picked threshold so the announcement matches.
+        beginRoundWithThreshold(nextRound, state._pendingThreshold);
+        state._pendingThreshold = null;
+        state.phase = "running";
+        state.lastTickRT = performance.now();
+      }, TRANSITION_MS);
+    };
+
+    // Variant of beginRound that uses an externally-decided threshold (so the
+    // transition card and the actual round agree).
+    const beginRoundWithThreshold = (n, thresholdPct) => {
+      if (state.remainingMs <= 0) {
+        finishGame("timeout");
+        return;
+      }
+      state.roundNo  = n;
+      state.threshold = thresholdPct;
+      state.shelf    = generateShelf(n, state.threshold);
+      state.passingTotal  = state.shelf.filter((c) => c.passes).length;
+      state.roundStartedAt   = new Date().toISOString();
+      state.roundStartElapsed= TOTAL_GAME_MS - state.remainingMs;
+      state.roundCorrect = 0;
+      state.roundWrong   = 0;
+      state.roundActions = [];
+
+      clearSideLists();
+      renderBanner();
+      renderShelf();
+      renderHUD();
+      updateNextSummary();
+    };
+
+    const finishGame = (reason /* timeout | reset | quit */) => {
+      // Finalize an in-flight round if one is still active.
+      const roundInFlight = state.shelf.length > 0 &&
+        !state.rounds.find((r) => r.round_no === state.roundNo);
+      if (roundInFlight) {
+        // Inline-end without triggering transition.
+        const endedAt = new Date().toISOString();
+        const elapsedAtEnd = TOTAL_GAME_MS - state.remainingMs;
+        const durationMs = elapsedAtEnd - state.roundStartElapsed;
+        const skippedSlots = state.shelf.filter((c) => !c.clicked).map((c) => c.slot);
+        state.rounds.push({
+          round_no: state.roundNo,
+          threshold_pct: state.threshold,
+          started_at: state.roundStartedAt,
+          ended_at: endedAt,
+          duration_ms: durationMs,
+          passing_total: state.passingTotal,
+          correct: state.roundCorrect,
+          wrong:   state.roundWrong,
+          round_bonus: 0,
+          score: state.roundCorrect,
+          ended_reason: reason,
+          shelf: state.shelf.map((c) => ({
+            slot: c.slot, item: c.item, full: c.full, reduced: c.reduced, passes: c.passes,
+          })),
+          actions: state.roundActions.slice(),
+          skipped_slots: skippedSlots,
+        });
+      }
+
+      state.phase = "over";
+      state.endedReason = reason;
+      state.sessionEndedAt = new Date().toISOString();
+
+      // Time bonus if we hit timeout cleanly.
+      let timeBonus = 0;
+      if (reason === "timeout") {
+        timeBonus = Math.floor((TOTAL_GAME_MS - (TOTAL_GAME_MS - state.remainingMs)) / 5000);
+        timeBonus = Math.max(0, timeBonus);
+      }
+      // (Per spec: 1 pt per 5 s remaining — but only awarded if any rounds played.)
+      if (state.rounds.length === 0) timeBonus = 0;
+      state.totalScore += timeBonus;
+
+      const totalClicks = state.totalCorrect + state.totalWrong;
+      const accuracyPct = totalClicks > 0
+        ? Math.round((state.totalCorrect / totalClicks) * 100)
+        : 0;
+
+      $.endTitle.textContent =
+        reason === "reset"   ? "Run reset." :
+        reason === "quit"    ? "Run ended." :
+                               "Time's up.";
+      $.endSubtitle.textContent =
+        reason === "timeout"
+          ? (timeBonus > 0 ? `Time bonus: +${timeBonus}` : "How were the bargains?")
+          : "Session saved.";
+      $.endScore.textContent      = String(state.totalScore);
+      $.endAccuracy.textContent   = `${accuracyPct}%`;
+      $.endRounds.textContent     = String(state.rounds.length);
+      $.endBestStreak.textContent = String(state.bestStreak);
+
+      $.endRoundTable.innerHTML = "";
+      for (const r of state.rounds) {
+        const tr = document.createElement("tr");
+        tr.innerHTML =
+          `<td>${r.round_no}</td>` +
+          `<td>&lt; ${r.threshold_pct}%</td>` +
+          `<td>${r.correct}</td>` +
+          `<td>${r.wrong}</td>` +
+          `<td>${r.score}${r.round_bonus ? ` (+${r.round_bonus})` : ""}</td>`;
+        $.endRoundTable.appendChild(tr);
+      }
+
+      persistSession({
+        session_id: state.sessionId,
+        game: "bargain-blitz",
+        started_at: state.sessionStartedAt,
+        ended_at: state.sessionEndedAt,
+        ended_reason: state.endedReason,
+        duration_ms: TOTAL_GAME_MS - state.remainingMs,
+        final_score: state.totalScore,
+        total_correct: state.totalCorrect,
+        total_wrong: state.totalWrong,
+        accuracy_pct: accuracyPct,
+        best_streak: state.bestStreak,
+        time_bonus: timeBonus,
+        rounds: state.rounds,
+      });
+
+      showOverlay($.ovEnd, true);
+    };
+
+    const persistSession = (record) => {
+      try {
+        const key = "bargainBlitz.sessions";
+        const arr = JSON.parse(localStorage.getItem(key) || "[]");
+        arr.push(record);
+        const trimmed = arr.slice(-SESSION_LIMIT);
+        localStorage.setItem(key, JSON.stringify(trimmed));
+      } catch (e) {
+        // localStorage may be unavailable; fail silent.
+      }
+    };
+
+    /* ----- Click logic ----- */
+    function onShelfClick(e) {
+      if (state.phase !== "running") return;
+      const btn = e.currentTarget;
+      const slot = Number(btn.dataset.slot);
+      const cell = state.shelf[slot];
+      if (!cell || cell.clicked) return;
+      cell.clicked = true;
+
+      const ts = new Date().toISOString();
+      const elapsedNow = TOTAL_GAME_MS - state.remainingMs;
+      const passes = cell.passes;
+      const correct = passes;
+
+      if (correct) {
+        state.totalScore  += 1;
+        state.totalCorrect+= 1;
+        state.roundCorrect+= 1;
+        state.streak      += 1;
+        state.bestStreak   = Math.max(state.bestStreak, state.streak);
+        btn.classList.add("flash-correct");
+      } else {
+        state.totalWrong  += 1;
+        state.roundWrong  += 1;
+        state.streak       = 0;
+        btn.classList.add("flash-wrong");
+      }
+
+      state.roundActions.push({
+        ts, elapsed_ms: elapsedNow, slot,
+        passed: passes,
+        result: correct ? "correct" : "wrong",
+      });
+
+      // Slide-out then move to side list.
+      setTimeout(() => {
+        btn.classList.remove("flash-correct", "flash-wrong");
+        btn.classList.add("sliding-out", correct ? "cart" : "returns");
+        setTimeout(() => {
+          btn.classList.add("cleared");
+          if (correct) {
+            state.cart.push(cell);
+            appendSideRow($.cartList, cell, "cart");
+          } else {
+            state.returns.push(cell);
+            appendSideRow($.returnsList, cell, "returns");
+          }
+        }, SLIDE_MS);
+      }, 120);
+
+      renderHUD();
+      updateNextSummary();
+
+      // Auto-end the round if every item has been clicked.
+      if (state.shelf.every((c) => c.clicked)) {
+        // Wait for the slide-out animation to finish before transitioning.
+        setTimeout(() => {
+          if (state.phase === "running") endRound("completed");
+        }, 120 + SLIDE_MS + 80);
+      }
+    }
+
+    const onNextRound = () => {
+      if (state.phase !== "running") return;
+      endRound("next");
+    };
+
+    /* ----- Timer ----- */
+    const tick = () => {
+      state.rafId = requestAnimationFrame(tick);
+      const now = performance.now();
+      const dt = now - state.lastTickRT;
+      state.lastTickRT = now;
+      if (state.phase === "running") {
+        state.remainingMs = Math.max(0, state.remainingMs - dt);
+        renderHUD();
+        if (state.remainingMs <= 0) {
+          // Hard stop the round and finish.
+          endRound("timeout");
+        }
+      }
+      // transition / paused / resetConfirm / over: timer frozen.
+    };
+
+    /* ----- Pause / Reset ----- */
+    const pauseGame = () => {
+      if (state.phase !== "running" && state.phase !== "transition") return;
+      state.pauseAt = performance.now();
+      state._prePausePhase = state.phase;
+      state.phase = "paused";
+      showOverlay($.ovPause, true);
+    };
+    const resumeGame = () => {
+      if (state.phase !== "paused") return;
+      state.lastTickRT = performance.now();
+      state.phase = state._prePausePhase || "running";
+      showOverlay($.ovPause, false);
+    };
+    const askReset = () => {
+      if (state.phase === "intro" || state.phase === "over") return;
+      if (state.phase !== "paused") {
+        state.pauseAt = performance.now();
+        state._prePausePhase = state.phase;
+      } else {
+        showOverlay($.ovPause, false);
+      }
+      state.phase = "resetConfirm";
+      showOverlay($.ovReset, true);
+    };
+    const cancelReset = () => {
+      showOverlay($.ovReset, false);
+      state.lastTickRT = performance.now();
+      state.phase = state._prePausePhase || "running";
+    };
+    const confirmReset = () => {
+      showOverlay($.ovReset, false);
+      finishGame("reset");
+      showOverlay($.ovEnd, false);
+      startGame();
+    };
+
+    const playAgain = () => {
+      showOverlay($.ovEnd, false);
+      if (state.rafId) {
+        cancelAnimationFrame(state.rafId);
+        state.rafId = null;
+      }
+      $.shelf.innerHTML = "";
+      clearSideLists();
+      state.phase = "intro";
+      setScreen("intro");
+    };
+
+    /* ----- Wire up controls ----- */
+    $.btnStart.addEventListener("click", startGame);
+    $.btnNext.addEventListener("click", onNextRound);
+    $.btnPause.addEventListener("click", pauseGame);
+    $.btnReset.addEventListener("click", askReset);
+    $.btnResume.addEventListener("click", resumeGame);
+    $.btnPauseReset.addEventListener("click", askReset);
+    $.btnResetConfirm.addEventListener("click", confirmReset);
+    $.btnResetCancel.addEventListener("click", cancelReset);
+    $.btnPlayAgain.addEventListener("click", playAgain);
+  })();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabase-client.js"></script>
+</body>
+</html>

@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Numeric Cascade — Synapse</title>
+<link rel="stylesheet" href="../assets/css/theme.css" />
+<style>
+  /* Layout overrides for Numeric Cascade. */
+  .game-stage { padding: 8px 24px 40px; align-items: flex-start; }
+  .nc-shell {
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  /* Screen visibility — only one .screen.active is shown. */
+  .screen { display: none; }
+  .screen.active { display: flex; flex-direction: column; gap: 18px; }
+
+  /* ---------- Intro / landing ---------- */
+  .intro-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 24px;
+    padding: 36px 32px;
+    backdrop-filter: blur(10px);
+    text-align: center;
+  }
+  .intro-icon {
+    width: 96px;
+    height: 96px;
+    margin: 0 auto 18px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, #a78bfa, #7c3aed);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+  }
+  .intro-card h1 {
+    font-size: 32px;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+  .intro-skill {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.6px;
+    margin-bottom: 18px;
+  }
+  .intro-blurb {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.65;
+    max-width: 520px;
+    margin: 0 auto 26px;
+  }
+  .how-to {
+    text-align: left;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 22px 24px;
+    margin-bottom: 22px;
+  }
+  .how-to h2 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .how-to ul {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .how-to li {
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.55;
+    padding-left: 26px;
+    position: relative;
+  }
+  .how-to li::before {
+    content: "›";
+    position: absolute;
+    left: 8px;
+    top: 0;
+    color: var(--accent-2);
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .how-to li b { color: var(--text); font-weight: 600; }
+  .how-to li code {
+    background: rgba(99, 102, 241, 0.15);
+    color: #c7d2fe;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .round-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .round-pill {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 12px 8px;
+  }
+  .round-pill .label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .round-pill .value { font-size: 15px; font-weight: 700; margin-top: 4px; }
+  .start-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+  /* ---------- HUD (game screen) ---------- */
+  .hud {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr) auto;
+    gap: 10px;
+    align-items: stretch;
+  }
+  .hud-cell {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 10px 8px;
+    text-align: center;
+    backdrop-filter: blur(10px);
+  }
+  .hud-cell.next-target {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.18), rgba(124, 58, 237, 0.18));
+    border-color: rgba(167, 139, 250, 0.4);
+  }
+  .hud-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 4px;
+  }
+  .hud-value { font-size: 18px; font-weight: 700; }
+  .hud-cell.next-target .hud-value {
+    font-size: 24px;
+    background: linear-gradient(135deg, #c7d2fe, #fff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  #timer.danger { color: #f87171; }
+
+  /* Normal mode: hide the Next target value and the direction hint. */
+  body:not(.hints-on) .hud-cell.next-target .hud-value {
+    color: var(--muted);
+    letter-spacing: 4px;
+  }
+  body:not(.hints-on) #direction-hint { visibility: hidden; }
+  .hud-actions { display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+  .hud-btn {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .hud-btn:hover {
+    border-color: var(--accent);
+    background: rgba(99, 102, 241, 0.1);
+  }
+
+  /* ---------- 5×5 board ---------- */
+  .board-wrap {
+    display: flex;
+    justify-content: center;
+  }
+  .board {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(5, 1fr);
+    gap: 10px;
+    width: 100%;
+    max-width: 520px;
+    aspect-ratio: 1 / 1;
+  }
+  .cell {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(20px, 5vw, 32px);
+    font-weight: 700;
+    color: var(--text);
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.12s, border-color 0.12s, background 0.2s, opacity 0.25s;
+    backdrop-filter: blur(10px);
+    font-variant-numeric: tabular-nums;
+  }
+  .cell:hover:not(.empty):not(:disabled) {
+    transform: scale(1.04);
+    border-color: var(--accent);
+    box-shadow: 0 4px 18px rgba(99, 102, 241, 0.2);
+  }
+  .cell.empty {
+    background: transparent;
+    border-style: dashed;
+    border-color: rgba(255, 255, 255, 0.08);
+    cursor: default;
+    color: transparent;
+  }
+  .cell.flash-correct {
+    background: rgba(74, 222, 128, 0.25);
+    border-color: #4ade80;
+    animation: ncFlashGood 0.45s;
+  }
+  .cell.flash-wrong {
+    background: rgba(248, 113, 113, 0.25);
+    border-color: #f87171;
+    animation: ncShake 0.4s;
+  }
+  .cell.fading-out {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  .cell.fading-in {
+    animation: ncFadeIn 0.32s ease-out;
+  }
+  @keyframes ncFlashGood {
+    0%   { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.55); }
+    100% { box-shadow: 0 0 0 18px rgba(74, 222, 128, 0); }
+  }
+  @keyframes ncShake {
+    0%, 100% { transform: translateX(0); }
+    25%      { transform: translateX(-6px); }
+    75%      { transform: translateX(6px); }
+  }
+  @keyframes ncFadeIn {
+    from { opacity: 0; transform: scale(0.85); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  .game-footer {
+    display: flex;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  /* ---------- Overlays / modals ---------- */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  .overlay-card {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(139, 92, 246, 0.12)), var(--bg-2);
+    border: 1px solid var(--card-border);
+    border-radius: 24px;
+    padding: 36px 28px;
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+  }
+  .overlay-card h2 { font-size: 26px; margin-bottom: 6px; }
+  .overlay-card .subtitle { color: var(--muted); margin-bottom: 22px; font-size: 14px; }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .stat-tile {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .stat-tile .label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .stat-tile .value { font-size: 22px; font-weight: 700; }
+
+  .round-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 22px;
+    font-size: 13px;
+  }
+  .round-table th, .round-table td {
+    padding: 8px 10px;
+    text-align: center;
+    border-bottom: 1px solid var(--card-border);
+  }
+  .round-table th { color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; }
+  .round-table td { color: var(--text); }
+  .round-table td:first-child { color: var(--muted); }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white;
+    border: none;
+    padding: 11px 26px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    transition: transform 0.2s;
+  }
+  .btn-primary:hover { transform: translateY(-2px); }
+  .btn-secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--card-border);
+    padding: 11px 26px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+  }
+  .btn-secondary:hover {
+    border-color: var(--accent);
+    background: rgba(99, 102, 241, 0.08);
+  }
+  .btn-danger {
+    background: rgba(248, 113, 113, 0.2);
+    color: #fca5a5;
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    padding: 11px 26px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .btn-danger:hover {
+    background: rgba(248, 113, 113, 0.3);
+    border-color: #f87171;
+  }
+
+  /* Round transition overlay (lighter than full overlay-card) */
+  .round-transition .overlay-card {
+    max-width: 360px;
+    padding: 32px 24px;
+  }
+  .round-transition .big {
+    font-size: 36px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #c7d2fe, #fff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 6px;
+  }
+  .round-transition .countdown {
+    font-size: 14px;
+    color: var(--muted);
+    margin-top: 16px;
+  }
+
+  @media (max-width: 540px) {
+    .hud { grid-template-columns: repeat(2, 1fr); }
+    .hud-actions { grid-column: span 2; flex-direction: row; justify-content: center; }
+    .round-summary { grid-template-columns: 1fr; }
+    .intro-card h1 { font-size: 26px; }
+  }
+</style>
+</head>
+<body data-color="purple">
+  <div class="bg-decoration one"></div>
+  <div class="bg-decoration two"></div>
+
+  <header class="page-header">
+    <a href="../index.html" class="logo">
+      <div class="logo-icon">🧠</div>
+      <span>Synapse</span>
+    </a>
+    <a href="../index.html" class="back-link">← Back to Hub</a>
+  </header>
+
+  <main class="game-stage">
+    <div class="nc-shell">
+      <!-- ============ INTRO / LANDING ============ -->
+      <section class="screen active" id="screen-intro">
+        <div class="intro-card">
+          <div class="intro-icon">🌊</div>
+          <h1>Numeric Cascade</h1>
+          <div class="intro-skill">Visual Search · Speed · Focus · Working Memory</div>
+          <p class="intro-blurb">
+            A fast 5×5 number-grid challenge inspired by the Schulte Table cognitive
+            test. Find the next number in the sequence as quickly as you can — every
+            correct tap cascades a new number into its place. Three rounds, one
+            5-minute clock.
+          </p>
+
+          <div class="how-to">
+            <h2>How to Play</h2>
+            <ul>
+              <li><b>Tap numbers in order.</b> Round 1 climbs <code>1 → 50</code>, Round 2 descends <code>50 → 1</code>, Round 3 climbs <code>1 → 50</code> again.</li>
+              <li><b>Cascade refill.</b> Each correct tap fades out and a new number streams into the same cell — the grid is always 25 numbers around your current target.</li>
+              <li><b>Skip penalty.</b> Tap a number too far ahead and every number you skipped is wiped from the grid. They no longer count toward your score.</li>
+              <li><b>Watch the clock.</b> One <b>5:00</b> countdown across all three rounds. Hit <code>0:00</code> and the run ends, finished or not.</li>
+              <li><b>Shortcuts.</b> <code>P</code> pauses · <code>R</code> resets (with confirm).</li>
+            </ul>
+          </div>
+
+          <div class="round-summary">
+            <div class="round-pill"><div class="label">Round 1</div><div class="value">1 → 50</div></div>
+            <div class="round-pill"><div class="label">Round 2</div><div class="value">50 → 1</div></div>
+            <div class="round-pill"><div class="label">Round 3</div><div class="value">1 → 50</div></div>
+          </div>
+
+          <div class="start-row">
+            <button class="btn-primary" id="btn-start" type="button">Start Game</button>
+            <a class="btn-secondary" href="../index.html">Back to Hub</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ GAME ============ -->
+      <section class="screen" id="screen-game">
+        <div class="hud">
+          <div class="hud-cell">
+            <div class="hud-label">Round</div>
+            <div class="hud-value"><span id="hud-round">1</span>/3</div>
+          </div>
+          <div class="hud-cell next-target">
+            <div class="hud-label">Next</div>
+            <div class="hud-value" id="hud-next">1</div>
+          </div>
+          <div class="hud-cell">
+            <div class="hud-label">Score</div>
+            <div class="hud-value" id="hud-score">0</div>
+          </div>
+          <div class="hud-cell">
+            <div class="hud-label">Time</div>
+            <div class="hud-value" id="timer">5:00</div>
+          </div>
+          <div class="hud-actions">
+            <button class="hud-btn" id="btn-hint" type="button">Show Hint</button>
+            <button class="hud-btn" id="btn-pause" type="button">Pause</button>
+            <button class="hud-btn" id="btn-reset" type="button">Reset</button>
+          </div>
+        </div>
+
+        <div class="board-wrap">
+          <div class="board" id="board"></div>
+        </div>
+
+        <div class="game-footer" id="direction-hint">Click numbers in ascending order: 1 → 50</div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ============ ROUND TRANSITION ============ -->
+  <div class="overlay round-transition" id="overlay-transition">
+    <div class="overlay-card">
+      <div class="big" id="trans-title">Round 2</div>
+      <div class="subtitle" id="trans-subtitle">Descending: 50 → 1</div>
+      <div class="countdown" id="trans-countdown">Starting in 1.5s…</div>
+    </div>
+  </div>
+
+  <!-- ============ PAUSE ============ -->
+  <div class="overlay" id="overlay-pause">
+    <div class="overlay-card">
+      <h2>Paused</h2>
+      <div class="subtitle">Press <code style="background: rgba(99,102,241,0.15); padding: 1px 6px; border-radius: 4px;">P</code> or click Resume to continue.</div>
+      <div class="modal-actions">
+        <button class="btn-primary" id="btn-resume" type="button">Resume</button>
+        <button class="btn-danger" id="btn-pause-reset" type="button">Reset Game</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ RESET CONFIRM ============ -->
+  <div class="overlay" id="overlay-reset">
+    <div class="overlay-card">
+      <h2>Reset the game?</h2>
+      <div class="subtitle">Your current progress will be lost.</div>
+      <div class="modal-actions">
+        <button class="btn-danger" id="btn-reset-confirm" type="button">Yes, Reset</button>
+        <button class="btn-secondary" id="btn-reset-cancel" type="button" style="cursor: pointer;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ END SCREEN ============ -->
+  <div class="overlay" id="overlay-end">
+    <div class="overlay-card">
+      <h2 id="end-title">Run complete!</h2>
+      <div class="subtitle" id="end-subtitle"></div>
+      <div class="stat-grid">
+        <div class="stat-tile"><div class="label">Final Score</div><div class="value" id="end-score">0</div></div>
+        <div class="stat-tile"><div class="label">Accuracy</div><div class="value" id="end-accuracy">0%</div></div>
+        <div class="stat-tile"><div class="label">Total Time</div><div class="value" id="end-time">0:00</div></div>
+        <div class="stat-tile"><div class="label">Rounds Cleared</div><div class="value" id="end-rounds">0</div></div>
+      </div>
+      <table class="round-table" id="end-round-table">
+        <thead>
+          <tr><th>Round</th><th>Score</th><th>Wrong</th><th>Time</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="modal-actions">
+        <button class="btn-primary" id="btn-play-again" type="button">Play Again</button>
+        <a class="btn-secondary" href="../index.html">Back to Hub</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  /* ============================================================
+     Numeric Cascade — implementation per games/numeric-cascade.md
+     ============================================================ */
+  (() => {
+    const TOTAL_GAME_MS = 5 * 60 * 1000;
+    const ROUND_TRANSITION_MS = 1500;
+    // Delay between clicking a cell and the new cascade number appearing in
+    // its place.
+    const FADE_MS = 1000;
+    // Short pause after the final click of a round, so the round-end overlay
+    // doesn't have to wait the full FADE_MS just to transition.
+    const ROUND_END_DELAY_MS = 700;
+    const SESSION_LIMIT = 20;
+
+    const el = (id) => document.getElementById(id);
+    const $ = {
+      // Screens
+      screenIntro: el("screen-intro"),
+      screenGame: el("screen-game"),
+      // Game UI
+      hudRound: el("hud-round"),
+      hudNext: el("hud-next"),
+      hudScore: el("hud-score"),
+      timer: el("timer"),
+      board: el("board"),
+      directionHint: el("direction-hint"),
+      btnPause: el("btn-pause"),
+      btnReset: el("btn-reset"),
+      btnStart: el("btn-start"),
+      btnHint: el("btn-hint"),
+      // Overlays
+      ovTransition: el("overlay-transition"),
+      transTitle: el("trans-title"),
+      transSubtitle: el("trans-subtitle"),
+      transCountdown: el("trans-countdown"),
+      ovPause: el("overlay-pause"),
+      btnResume: el("btn-resume"),
+      btnPauseReset: el("btn-pause-reset"),
+      ovReset: el("overlay-reset"),
+      btnResetConfirm: el("btn-reset-confirm"),
+      btnResetCancel: el("btn-reset-cancel"),
+      ovEnd: el("overlay-end"),
+      endTitle: el("end-title"),
+      endSubtitle: el("end-subtitle"),
+      endScore: el("end-score"),
+      endAccuracy: el("end-accuracy"),
+      endTime: el("end-time"),
+      endRounds: el("end-rounds"),
+      endRoundTable: el("end-round-table").querySelector("tbody"),
+      btnPlayAgain: el("btn-play-again"),
+    };
+
+    /* ----- State ----- */
+    const state = {
+      // Lifecycle
+      phase: "intro", // intro | running | paused | transition | resetConfirm | over
+      sessionId: null,
+      sessionStartedAt: null, // ISO
+      sessionEndedAt: null,
+      endedReason: null, // completed | timeout | reset | quit
+
+      // Round
+      roundNo: 0,
+      direction: "asc",
+      expected: 1,
+      pool: [],
+      grid: new Array(25).fill(null), // numbers or null
+      roundStartedAt: null,
+      roundStartElapsed: 0, // ms in (TOTAL_GAME_MS - timeLeft) at round start
+      roundCorrect: 0,
+      roundWrong: 0,
+      roundEvents: [],
+
+      // Cumulative
+      totalScore: 0,
+      totalCorrect: 0,
+      totalWrong: 0,
+      rounds: [], // finished round summaries
+
+      // Timer
+      remainingMs: TOTAL_GAME_MS,
+      lastTickRT: 0, // performance.now() at last tick
+      rafId: null,
+
+      // Difficulty / hints (default mode = normal: next number + direction hint hidden)
+      hintsVisible: false,
+
+      // Animation guards
+      pendingFills: 0,
+    };
+
+    /* ----- Helpers ----- */
+    const range = (a, b) => {
+      const out = [];
+      if (a <= b) for (let i = a; i <= b; i++) out.push(i);
+      else        for (let i = a; i >= b; i--) out.push(i);
+      return out;
+    };
+    const shuffle = (arr) => {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
+
+    /**
+     * Build a 50-element cascade sequence (positions 1..25 = initial grid,
+     * 26..50 = pool consumed in order).
+     *
+     * Algorithm:
+     *  1. Random-shuffle [1..50].
+     *  2. Walk the click sequence (1..50 for asc, 50..1 for desc). For the
+     *     n-th clicked number, ensure it lives within the first n+20 places.
+     *     If it doesn't, swap it with the most-out-of-place value in the
+     *     window — the LARGEST when ascending (that value is clicked late so
+     *     it's safe to push later), the SMALLEST when descending (mirrored,
+     *     since for desc the high numbers must stay early).
+     *
+     * The +20 buffer is tighter than the bare-minimum reachability bound, so
+     * the next target tends to be visible a few clicks before it's needed.
+     */
+    const buildSequence = (direction) => {
+      const seq = shuffle(range(1, 50));
+      for (let n = 1; n <= 50; n++) {
+        const windowEnd = Math.min(n + 20, 50);          // count of leading positions
+        const target    = (direction === "asc") ? n : (51 - n);
+        const posTarget = seq.indexOf(target);            // 0-indexed
+        if (posTarget >= windowEnd) {
+          let candIdx = 0;
+          for (let j = 1; j < windowEnd; j++) {
+            if (direction === "asc") {
+              if (seq[j] > seq[candIdx]) candIdx = j;     // largest in window
+            } else {
+              if (seq[j] < seq[candIdx]) candIdx = j;     // smallest in window
+            }
+          }
+          [seq[posTarget], seq[candIdx]] = [seq[candIdx], seq[posTarget]];
+        }
+      }
+      return seq;
+    };
+
+    /**
+     * Pop the next pool value that's still relevant — i.e., it lies on the
+     * forward side of the current expected target. Stale values (numbers the
+     * player has already passed via skip-removal) are silently discarded so
+     * they never resurface on the grid.
+     *
+     * For ascending rounds, "stale" means the pool value is < expected.
+     * For descending rounds, "stale" means the pool value is > expected.
+     * Expected must already reflect the just-completed click before calling.
+     */
+    const nextValidPoolValue = () => {
+      while (state.pool.length > 0) {
+        const head = state.pool[0];
+        const stale = state.direction === "asc"
+          ? (head < state.expected)
+          : (head > state.expected);
+        if (!stale) return state.pool.shift();
+        state.pool.shift(); // discard
+      }
+      return null;
+    };
+    const fmtTime = (ms) => {
+      const s = Math.max(0, Math.ceil(ms / 1000));
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    };
+    const fmtDuration = (ms) => {
+      const s = Math.max(0, Math.floor(ms / 1000));
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    };
+    const newSessionId = () =>
+      (crypto.randomUUID && crypto.randomUUID()) ||
+      `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
+    const showOverlay = (overlayEl, on) => {
+      overlayEl.classList.toggle("show", !!on);
+    };
+    const setScreen = (name) => {
+      $.screenIntro.classList.toggle("active", name === "intro");
+      $.screenGame.classList.toggle("active", name !== "intro");
+    };
+
+    /* ----- Board rendering ----- */
+    const renderBoard = () => {
+      $.board.innerHTML = "";
+      for (let i = 0; i < 25; i++) {
+        const v = state.grid[i];
+        const cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "cell" + (v === null ? " empty" : "");
+        cell.dataset.idx = String(i);
+        cell.textContent = v === null ? "" : String(v);
+        cell.disabled = v === null;
+        cell.addEventListener("click", onCellClick);
+        $.board.appendChild(cell);
+      }
+    };
+    const cellAt = (i) => $.board.children[i];
+    const updateCell = (i) => {
+      const c = cellAt(i);
+      const v = state.grid[i];
+      if (v === null) {
+        c.classList.add("empty");
+        c.disabled = true;
+        c.textContent = "";
+      } else {
+        c.classList.remove("empty");
+        c.disabled = false;
+        c.textContent = String(v);
+      }
+    };
+
+    /* ----- Logging ----- */
+    const logEvent = (ev) => {
+      state.roundEvents.push(ev);
+    };
+
+    /* ----- Round / game lifecycle ----- */
+    const startGame = () => {
+      state.sessionId = newSessionId();
+      state.sessionStartedAt = new Date().toISOString();
+      state.sessionEndedAt = null;
+      state.endedReason = null;
+      state.totalScore = 0;
+      state.totalCorrect = 0;
+      state.totalWrong = 0;
+      state.rounds = [];
+      state.remainingMs = TOTAL_GAME_MS;
+
+      // Always start a fresh run in normal mode.
+      setHints(false);
+
+      // Cancel any leftover raf from a prior run before starting a new chain.
+      if (state.rafId) {
+        cancelAnimationFrame(state.rafId);
+        state.rafId = null;
+      }
+
+      setScreen("game");
+      state.phase = "running";
+      state.lastTickRT = performance.now();
+      tick();
+      beginRound(1);
+    };
+
+    const beginRound = (n) => {
+      state.roundNo = n;
+      state.direction = (n === 2) ? "desc" : "asc";
+
+      const seq = buildSequence(state.direction);
+      state.grid = seq.slice(0, 25);
+      state.pool = seq.slice(25);
+      state.expected = (state.direction === "asc") ? 1 : 50;
+
+      state.roundStartedAt = new Date().toISOString();
+      state.roundStartElapsed = TOTAL_GAME_MS - state.remainingMs;
+      state.roundCorrect = 0;
+      state.roundWrong = 0;
+      state.roundEvents = [];
+
+      logEvent({
+        ts: state.roundStartedAt,
+        elapsed_ms: state.roundStartElapsed,
+        type: "round_start",
+        round_no: n,
+        direction: state.direction,
+      });
+
+      $.hudRound.textContent = String(n);
+      $.directionHint.textContent = (state.direction === "asc")
+        ? "Click numbers in ascending order: 1 → 50"
+        : "Click numbers in descending order: 50 → 1";
+      renderBoard();
+      renderHUD();
+    };
+
+    const endRound = (reason /* completed | timeout | reset */) => {
+      const endedAt = new Date().toISOString();
+      const elapsedAtEnd = TOTAL_GAME_MS - state.remainingMs;
+      const durationMs = elapsedAtEnd - state.roundStartElapsed;
+      const cleared = reason === "completed";
+      const roundScore = state.roundCorrect + (cleared ? 5 : 0);
+      state.totalScore += (cleared ? 5 : 0); // correct points were added per click
+
+      state.rounds.push({
+        round_no: state.roundNo,
+        direction: state.direction,
+        started_at: state.roundStartedAt,
+        ended_at: endedAt,
+        duration_ms: durationMs,
+        score: roundScore,
+        wrong_clicks: state.roundWrong,
+        ended_reason: reason,
+        events: state.roundEvents.slice(),
+      });
+
+      logEvent({
+        ts: endedAt,
+        elapsed_ms: elapsedAtEnd,
+        type: "round_end",
+        round_no: state.roundNo,
+        reason,
+      });
+
+      if (state.roundNo < 3 && reason === "completed" && state.remainingMs > 0) {
+        showRoundTransition(state.roundNo + 1);
+      } else {
+        finishGame(reason === "timeout" ? "timeout" : (state.roundNo >= 3 && reason === "completed") ? "completed" : reason);
+      }
+    };
+
+    const showRoundTransition = (nextRound) => {
+      state.phase = "transition";
+      const dir = (nextRound === 2) ? "desc" : "asc";
+      $.transTitle.textContent = `Round ${nextRound}`;
+      $.transSubtitle.textContent = (dir === "desc")
+        ? "Descending: 50 → 1"
+        : "Ascending: 1 → 50";
+      $.transCountdown.textContent = "Starting in 1.5s…";
+      showOverlay($.ovTransition, true);
+      setTimeout(() => {
+        showOverlay($.ovTransition, false);
+        beginRound(nextRound);
+        state.phase = "running";
+        state.lastTickRT = performance.now();
+      }, ROUND_TRANSITION_MS);
+    };
+
+    const finishGame = (reason) => {
+      state.phase = "over";
+      state.endedReason = reason;
+      state.sessionEndedAt = new Date().toISOString();
+      const timeBonus = (reason === "completed")
+        ? Math.max(0, Math.floor(state.remainingMs / 1000))
+        : 0;
+      state.totalScore += timeBonus;
+
+      // End screen content
+      const totalClicks = state.totalCorrect + state.totalWrong;
+      const accuracyPct = totalClicks > 0 ? Math.round((state.totalCorrect / totalClicks) * 100) : 0;
+      const elapsed = TOTAL_GAME_MS - state.remainingMs;
+      const cleared = state.rounds.filter((r) => r.ended_reason === "completed").length;
+
+      $.endTitle.textContent = (reason === "completed")
+        ? "All three rounds cleared!"
+        : (reason === "timeout") ? "Time's up." : "Run ended.";
+      $.endSubtitle.textContent = (reason === "completed")
+        ? (timeBonus > 0 ? `Time bonus: +${timeBonus}` : "Solid run.")
+        : (reason === "timeout") ? "The clock got ahead of you." : "Reset acknowledged.";
+      $.endScore.textContent = String(state.totalScore);
+      $.endAccuracy.textContent = `${accuracyPct}%`;
+      $.endTime.textContent = fmtDuration(elapsed);
+      $.endRounds.textContent = `${cleared}/3`;
+
+      $.endRoundTable.innerHTML = "";
+      for (let i = 0; i < 3; i++) {
+        const r = state.rounds[i];
+        const tr = document.createElement("tr");
+        if (r) {
+          tr.innerHTML = `<td>${i + 1}</td><td>${r.score}</td><td>${r.wrong_clicks}</td><td>${fmtDuration(r.duration_ms)}</td>`;
+        } else {
+          tr.innerHTML = `<td>${i + 1}</td><td>—</td><td>—</td><td>—</td>`;
+        }
+        $.endRoundTable.appendChild(tr);
+      }
+
+      persistSession({
+        session_id: state.sessionId,
+        game: "numeric-cascade",
+        started_at: state.sessionStartedAt,
+        ended_at: state.sessionEndedAt,
+        ended_reason: state.endedReason,
+        final_score: state.totalScore,
+        total_correct: state.totalCorrect,
+        total_wrong: state.totalWrong,
+        accuracy_pct: accuracyPct,
+        time_bonus: timeBonus,
+        rounds: state.rounds,
+      });
+
+      showOverlay($.ovEnd, true);
+    };
+
+    const persistSession = (record) => {
+      try {
+        const key = "numericCascade.sessions";
+        const arr = JSON.parse(localStorage.getItem(key) || "[]");
+        arr.push(record);
+        // Keep only the most recent N to avoid unbounded growth.
+        const trimmed = arr.slice(-SESSION_LIMIT);
+        localStorage.setItem(key, JSON.stringify(trimmed));
+      } catch (e) {
+        // localStorage may be unavailable (private mode); fail silent.
+      }
+    };
+
+    /* ----- Click logic ----- */
+    function onCellClick(e) {
+      if (state.phase !== "running") return;
+      const idx = Number(e.currentTarget.dataset.idx);
+      const value = state.grid[idx];
+      if (value === null) return;
+
+      const expected = state.expected;
+      const dir = state.direction;
+      const elapsedNow = TOTAL_GAME_MS - state.remainingMs;
+      const ts = new Date().toISOString();
+      const cellRC = [Math.floor(idx / 5), idx % 5];
+
+      if (value === expected) {
+        // Correct click
+        state.roundCorrect += 1;
+        state.totalCorrect += 1;
+        state.totalScore += 1;
+
+        flashCell(idx, "correct");
+        state.grid[idx] = null;
+        cellAt(idx).classList.add("fading-out");
+
+        // Advance expected first so the pool filter measures against the
+        // post-click target.
+        const nextExpected = (dir === "asc") ? expected + 1 : expected - 1;
+        state.expected = nextExpected;
+
+        // Reserve the next pool value NOW — and skip past any stale items so
+        // the player never sees a number that's already been passed.
+        const reservedValue = nextValidPoolValue();
+        setTimeout(() => {
+          if (state.grid[idx] !== null) return; // safety: a skip cascade may have refilled
+          if (typeof reservedValue === "number") {
+            // Re-check against current expected — a later skip may have
+            // moved past this reservation, making it stale.
+            const fresh = (state.direction === "asc")
+              ? reservedValue >= state.expected
+              : reservedValue <= state.expected;
+            if (fresh) state.grid[idx] = reservedValue;
+          }
+          updateCell(idx);
+          cellAt(idx).classList.remove("fading-out", "flash-correct");
+          cellAt(idx).classList.add("fading-in");
+          setTimeout(() => cellAt(idx).classList.remove("fading-in"), 320);
+        }, FADE_MS);
+
+        logEvent({ ts, elapsed_ms: elapsedNow, expected, clicked: value, result: "correct", cell: cellRC });
+
+        renderHUD();
+        const reached = (dir === "asc") ? (nextExpected > 50) : (nextExpected < 1);
+        if (reached) {
+          setTimeout(() => endRound("completed"), ROUND_END_DELAY_MS);
+        }
+      } else if ((dir === "asc" && value > expected) || (dir === "desc" && value < expected)) {
+        // Skip penalty
+        state.roundWrong += 1;
+        state.totalWrong += 1;
+
+        flashCell(idx, "wrong");
+
+        // Determine which numbers get wiped from the grid.
+        // For asc: any cell value in [expected, value] (inclusive of value because clicked too).
+        // For desc: any cell value in [value, expected] (inclusive of value because clicked too).
+        const lo = Math.min(expected, value);
+        const hi = Math.max(expected, value);
+        const removedSet = new Set();
+        for (let i = 0; i < 25; i++) {
+          const v = state.grid[i];
+          if (v !== null && v >= lo && v <= hi) removedSet.add(v);
+        }
+        const removed = Array.from(removedSet).sort((a, b) => (dir === "asc" ? a - b : b - a));
+        // Make sure the clicked value (already in grid) is in the set.
+        removedSet.add(value);
+
+        // Advance expected past the clicked value FIRST, so the pool-staleness
+        // filter measures against the new target.
+        const newExpected = (dir === "asc") ? value + 1 : value - 1;
+        state.expected = newExpected;
+
+        // Phase 1 (immediate): empty the affected cells — clear the text
+        // right away so the skipped numbers vanish instead of lingering for
+        // a quarter-second of opacity transition.
+        const indicesToRefill = [];
+        for (let i = 0; i < 25; i++) {
+          if (state.grid[i] !== null && removedSet.has(state.grid[i])) {
+            state.grid[i] = null;
+            indicesToRefill.push(i);
+            cellAt(i).textContent = "";
+            cellAt(i).classList.add("fading-out");
+          }
+        }
+        // Reserve fresh cascade values (skipping stale pool items).
+        const reservedValues = indicesToRefill.map(() => nextValidPoolValue());
+
+        // Randomise which emptied cell receives which new number, so big
+        // skips don't predictably refill in the original positions.
+        const placementIndices = shuffle(indicesToRefill);
+
+        // Phase 2 (after FADE_MS): drop in the new numbers and fade them in.
+        // Each value is re-validated against the *current* expected — a click
+        // that happened during the wait may have advanced expected past this
+        // reservation, in which case the value is stale and silently dropped.
+        setTimeout(() => {
+          placementIndices.forEach((i, k) => {
+            if (state.grid[i] !== null) return; // safety: a later cascade refilled
+            const v = reservedValues[k];
+            if (typeof v === "number") {
+              const fresh = (state.direction === "asc")
+                ? v >= state.expected
+                : v <= state.expected;
+              if (fresh) state.grid[i] = v;
+            }
+            updateCell(i);
+            cellAt(i).classList.remove("fading-out", "flash-correct", "flash-wrong");
+            cellAt(i).classList.add("fading-in");
+            setTimeout(((idxClosure) => () =>
+              cellAt(idxClosure).classList.remove("fading-in"))(i), 320);
+          });
+        }, FADE_MS);
+
+        logEvent({
+          ts,
+          elapsed_ms: elapsedNow,
+          expected,
+          clicked: value,
+          result: "skip",
+          cell: cellRC,
+          removed_numbers: removed,
+        });
+
+        renderHUD();
+        const reached = (dir === "asc") ? (newExpected > 50) : (newExpected < 1);
+        if (reached) {
+          setTimeout(() => endRound("completed"), ROUND_END_DELAY_MS);
+        }
+      } else {
+        // Already-cleared / under-expected (rare since cells refill, but be defensive)
+        state.roundWrong += 1;
+        state.totalWrong += 1;
+        flashCell(idx, "wrong");
+        logEvent({ ts, elapsed_ms: elapsedNow, expected, clicked: value, result: "wrong", cell: cellRC });
+      }
+    }
+
+    const flashCell = (idx, kind) => {
+      const c = cellAt(idx);
+      const cls = kind === "correct" ? "flash-correct" : "flash-wrong";
+      c.classList.add(cls);
+      setTimeout(() => c.classList.remove(cls), 480);
+    };
+
+    /* ----- HUD / timer ----- */
+    const renderHUD = () => {
+      const target = state.expected;
+      const valid = target >= 1 && target <= 50;
+      $.hudNext.textContent = (state.hintsVisible && valid) ? String(target) : "—";
+      $.hudScore.textContent = String(state.totalScore);
+      $.hudRound.textContent = String(state.roundNo);
+      $.timer.textContent = fmtTime(state.remainingMs);
+      $.timer.classList.toggle("danger", state.remainingMs <= 30 * 1000);
+    };
+
+    const setHints = (on) => {
+      state.hintsVisible = !!on;
+      document.body.classList.toggle("hints-on", state.hintsVisible);
+      $.btnHint.textContent = state.hintsVisible ? "Hide Hint (H)" : "Show Hint (H)";
+      renderHUD();
+    };
+    const toggleHint = () => setHints(!state.hintsVisible);
+
+    const tick = () => {
+      // Stop the loop entirely when we leave the active game phases —
+      // otherwise restarts pile up parallel raf chains.
+      if (state.phase === "intro" || state.phase === "over") {
+        state.rafId = null;
+        return;
+      }
+      state.rafId = requestAnimationFrame(tick);
+      const now = performance.now();
+      const dt = now - state.lastTickRT;
+      state.lastTickRT = now;
+      if (state.phase === "running") {
+        state.remainingMs = Math.max(0, state.remainingMs - dt);
+        $.timer.textContent = fmtTime(state.remainingMs);
+        $.timer.classList.toggle("danger", state.remainingMs <= 30 * 1000);
+        if (state.remainingMs <= 0) {
+          endRound("timeout");
+        }
+      }
+    };
+
+    /* ----- Pause / Reset ----- */
+    const pauseGame = () => {
+      if (state.phase !== "running") return;
+      state.phase = "paused";
+      showOverlay($.ovPause, true);
+    };
+    const resumeGame = () => {
+      if (state.phase !== "paused") return;
+      showOverlay($.ovPause, false);
+      state.phase = "running";
+      state.lastTickRT = performance.now();
+    };
+    const askReset = () => {
+      if (state.phase === "intro" || state.phase === "over") return;
+      // If we were running, pause the timer while the modal is up.
+      if (state.phase === "running") state.phase = "resetConfirm";
+      else if (state.phase === "paused") {
+        showOverlay($.ovPause, false);
+        state.phase = "resetConfirm";
+      }
+      showOverlay($.ovReset, true);
+    };
+    const cancelReset = () => {
+      showOverlay($.ovReset, false);
+      // If user was paused before, return to paused; else resume running.
+      if (!$.ovPause.classList.contains("show")) {
+        state.phase = "running";
+        state.lastTickRT = performance.now();
+      } else {
+        state.phase = "paused";
+      }
+    };
+    const confirmReset = () => {
+      showOverlay($.ovReset, false);
+      // Finalize the in-progress round/session as `reset`.
+      if (state.roundNo >= 1 && state.roundNo <= 3) {
+        endRound("reset");
+      } else {
+        state.phase = "over";
+      }
+      // Ensure end overlay isn't shown — go straight to a fresh run.
+      showOverlay($.ovEnd, false);
+      startGame();
+    };
+
+    const playAgain = () => {
+      showOverlay($.ovEnd, false);
+      // Tear down any animations / pending state from the finished run.
+      $.board.innerHTML = "";
+      state.phase = "intro";
+      if (state.rafId) {
+        cancelAnimationFrame(state.rafId);
+        state.rafId = null;
+      }
+      setScreen("intro");
+    };
+
+    /* ----- Wire up controls ----- */
+    $.btnStart.addEventListener("click", startGame);
+    $.btnPause.addEventListener("click", pauseGame);
+    $.btnReset.addEventListener("click", askReset);
+    $.btnHint.addEventListener("click", toggleHint);
+    $.btnResume.addEventListener("click", resumeGame);
+    $.btnPauseReset.addEventListener("click", askReset);
+    $.btnResetConfirm.addEventListener("click", confirmReset);
+    $.btnResetCancel.addEventListener("click", cancelReset);
+    $.btnPlayAgain.addEventListener("click", playAgain);
+
+    document.addEventListener("keydown", (e) => {
+      if (state.phase === "intro" || state.phase === "over") return;
+      const k = e.key.toLowerCase();
+      if (k === "p") {
+        if (state.phase === "running") pauseGame();
+        else if (state.phase === "paused") resumeGame();
+      } else if (k === "r") {
+        if (state.phase === "resetConfirm") return;
+        askReset();
+      } else if (k === "h") {
+        if (state.phase === "running" || state.phase === "paused") toggleHint();
+      } else if (k === "escape") {
+        if (state.phase === "resetConfirm") cancelReset();
+      }
+    });
+  })();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabase-client.js"></script>
+</body>
+</html>

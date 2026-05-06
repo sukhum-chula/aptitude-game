@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Flow Forge — Synapse</title>
+<link rel="stylesheet" href="../assets/css/theme.css" />
+<style>
+  .game-stage { padding: 8px 24px 40px; align-items: flex-start; }
+
+  .ff-shell {
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .screen { display: none; }
+  .screen.active { display: flex; flex-direction: column; gap: 18px; }
+
+  /* ---------- Intro ---------- */
+  .intro-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 24px;
+    padding: 36px 32px;
+    backdrop-filter: blur(10px);
+    text-align: center;
+  }
+  .intro-icon {
+    width: 96px; height: 96px;
+    margin: 0 auto 18px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, #22d3ee, #0891b2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 48px;
+  }
+  .intro-card h1 { font-size: 32px; font-weight: 800; margin-bottom: 8px; }
+  .intro-skill {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.6px;
+    margin-bottom: 18px;
+  }
+  .intro-blurb {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.65;
+    max-width: 560px;
+    margin: 0 auto 26px;
+  }
+  .how-to {
+    text-align: left;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 22px 24px;
+    margin-bottom: 22px;
+  }
+  .how-to h2 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #22d3ee;
+    margin-bottom: 14px;
+  }
+  .how-to ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .how-to li {
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.55;
+    padding-left: 26px;
+    position: relative;
+  }
+  .how-to li::before {
+    content: "›";
+    position: absolute; left: 8px; top: 0;
+    color: #22d3ee; font-weight: 700; font-size: 16px;
+  }
+  .how-to li b { color: var(--text); font-weight: 600; }
+  .start-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+  /* ---------- HUD ---------- */
+  .hud {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr) auto;
+    gap: 10px;
+  }
+  .hud-cell {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 10px 8px;
+    text-align: center;
+    backdrop-filter: blur(10px);
+  }
+  .hud-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 4px;
+  }
+  .hud-value { font-size: 18px; font-weight: 700; }
+  #timer.danger { color: #f87171; }
+  .hud-actions { display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+  .hud-btn {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .hud-btn:hover { border-color: #22d3ee; background: rgba(34, 211, 238, 0.1); }
+
+  /* ---------- Board ---------- */
+  .board-wrap { display: flex; justify-content: center; }
+  .board-frame {
+    display: grid;
+    grid-template-columns: 50px 1fr 50px;
+    gap: 10px;
+    align-items: stretch;
+    width: 100%;
+    max-width: 620px;
+  }
+  .strip {
+    display: grid;
+    grid-template-rows: repeat(var(--rows, 4), 1fr);
+    gap: 8px;
+  }
+  .strip-marker {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    color: var(--muted);
+    border: 1px solid transparent;
+    border-radius: 10px;
+  }
+  .strip-marker.source-active {
+    color: #60a5fa;
+    text-shadow: 0 0 12px rgba(96, 165, 250, 0.6);
+    animation: ffPulse 1.6s ease-in-out infinite;
+  }
+  .strip-marker.outlet-valid { color: #4ade80; }
+  .strip-marker.outlet-valve { color: #f87171; }
+  .strip-marker.outlet-reached {
+    border-color: #4ade80;
+    background: rgba(74, 222, 128, 0.15);
+    animation: ffPulse 1.2s ease-in-out;
+  }
+  .strip-marker.outlet-hit-valve {
+    border-color: #f87171;
+    background: rgba(248, 113, 113, 0.18);
+    animation: ffShake 0.5s;
+  }
+  @keyframes ffPulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.12); }
+  }
+  @keyframes ffShake {
+    0%, 100% { transform: translateX(0); }
+    25%      { transform: translateX(-4px); }
+    75%      { transform: translateX(4px); }
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 4), 1fr);
+    grid-template-rows:    repeat(var(--rows, 4), 1fr);
+    gap: 8px;
+    aspect-ratio: var(--cols, 4) / var(--rows, 4);
+  }
+  .cell {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    cursor: pointer;
+    padding: 0;
+    position: relative;
+    transition: transform 0.12s, border-color 0.12s, box-shadow 0.2s, background 0.25s;
+    overflow: hidden;
+    font-family: inherit;
+  }
+  .cell:hover:not(:disabled):not(.empty) {
+    border-color: #22d3ee;
+    box-shadow: 0 4px 18px rgba(34, 211, 238, 0.18);
+  }
+  .cell.empty {
+    background: transparent;
+    border-style: dashed;
+    border-color: rgba(255, 255, 255, 0.05);
+    cursor: default;
+  }
+  .cell svg {
+    width: 100%; height: 100%;
+    display: block;
+    transition: transform 0.18s ease-out;
+  }
+  .cell.flooded { background: rgba(34, 211, 238, 0.18); border-color: #22d3ee; }
+  .cell.flooded .pipe-shape { fill: #22d3ee; }
+  .pipe-shape {
+    fill: #cbd5e1;
+    transition: fill 0.25s;
+  }
+  .cell:disabled { cursor: not-allowed; }
+
+  .launch-row { display: flex; justify-content: center; }
+  .btn-launch {
+    background: linear-gradient(135deg, #22d3ee, #0891b2);
+    color: white;
+    border: none;
+    padding: 14px 38px;
+    border-radius: 14px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    box-shadow: 0 6px 20px rgba(34, 211, 238, 0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .btn-launch:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(34, 211, 238, 0.5);
+  }
+  .btn-launch:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .game-footer { text-align: center; color: var(--muted); font-size: 13px; }
+
+  /* ---------- Overlays / modals ---------- */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; padding: 24px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  .overlay-card {
+    background: linear-gradient(135deg, rgba(34, 211, 238, 0.18), rgba(8, 145, 178, 0.12)), var(--bg-2);
+    border: 1px solid var(--card-border);
+    border-radius: 24px;
+    padding: 36px 28px;
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .overlay-card h2 { font-size: 26px; margin-bottom: 6px; }
+  .overlay-card .subtitle { color: var(--muted); margin-bottom: 22px; font-size: 14px; }
+  .round-transition .overlay-card { max-width: 380px; padding: 32px 24px; }
+  .round-transition .big {
+    font-size: 36px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #67e8f9, #fff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 6px;
+  }
+  .result-banner .big { font-size: 32px; font-weight: 800; margin-bottom: 6px; }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .stat-tile {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .stat-tile .label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .stat-tile .value { font-size: 22px; font-weight: 700; }
+  .round-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 22px;
+    font-size: 13px;
+  }
+  .round-table th, .round-table td {
+    padding: 8px 10px;
+    text-align: center;
+    border-bottom: 1px solid var(--card-border);
+  }
+  .round-table th { color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; }
+
+  .modal-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white; border: none;
+    padding: 11px 26px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 15px; font-weight: 600;
+    font-family: inherit;
+    transition: transform 0.2s;
+  }
+  .btn-primary:hover { transform: translateY(-2px); }
+  .btn-secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--card-border);
+    padding: 11px 26px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 15px; font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+    display: inline-flex; align-items: center;
+  }
+  .btn-secondary:hover { border-color: #22d3ee; background: rgba(34, 211, 238, 0.08); }
+  .btn-danger {
+    background: rgba(248, 113, 113, 0.2);
+    color: #fca5a5;
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    padding: 11px 26px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 15px; font-weight: 500;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .btn-danger:hover { background: rgba(248, 113, 113, 0.3); border-color: #f87171; }
+
+  @media (max-width: 540px) {
+    .hud { grid-template-columns: repeat(2, 1fr); }
+    .hud-actions { grid-column: span 2; flex-direction: row; justify-content: center; }
+    .intro-card h1 { font-size: 26px; }
+    .board-frame { grid-template-columns: 38px 1fr 38px; }
+  }
+</style>
+</head>
+<body data-color="cyan">
+  <div class="bg-decoration one"></div>
+  <div class="bg-decoration two"></div>
+
+  <header class="page-header">
+    <a href="../index.html" class="logo">
+      <div class="logo-icon">🧠</div>
+      <span>Synapse</span>
+    </a>
+    <a href="../index.html" class="back-link">← Back to Hub</a>
+  </header>
+
+  <main class="game-stage">
+    <div class="ff-shell">
+      <!-- ============ INTRO ============ -->
+      <section class="screen active" id="screen-intro">
+        <div class="intro-card">
+          <div class="intro-icon">🚰</div>
+          <h1>Flow Forge</h1>
+          <div class="intro-skill">Spatial Reasoning · Logical Planning · Pathfinding</div>
+          <p class="intro-blurb">
+            Rotate pipe tiles to route water from the source on the left to every
+            open outlet on the right — without hitting any sealed valve. Three rounds
+            of growing scope, one 5-minute clock.
+          </p>
+          <div class="how-to">
+            <h2>How to Play</h2>
+            <ul>
+              <li><b>Click a pipe</b> to rotate it 90° clockwise.</li>
+              <li><b>Click LAUNCH</b> when the layout looks right — the water flows once and the round is decided.</li>
+              <li><b>Reach every open outlet</b> (✓) to win. Hitting a sealed valve (🛑) loses the round.</li>
+              <li><b>Round 1:</b> 4×4, one outlet. <b>Round 2:</b> 4×4, two outlets (T-junctions appear). <b>Round 3:</b> 5×5, two outlets.</li>
+              <li><b>Watch the 5:00 clock.</b> When it hits 0:00 the in-progress round auto-launches with whatever you've built.</li>
+            </ul>
+          </div>
+          <div class="start-row">
+            <button class="btn-primary" id="btn-start" type="button">Start Game</button>
+            <a class="btn-secondary" href="../index.html">Back to Hub</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ GAME ============ -->
+      <section class="screen" id="screen-game">
+        <div class="launch-row">
+          <button class="btn-launch" id="btn-launch" type="button">🚀 LAUNCH</button>
+        </div>
+
+        <div class="hud">
+          <div class="hud-cell">
+            <div class="hud-label">Round</div>
+            <div class="hud-value" id="hud-round">1</div>
+          </div>
+          <div class="hud-cell">
+            <div class="hud-label">Score</div>
+            <div class="hud-value" id="hud-score">0</div>
+          </div>
+          <div class="hud-cell">
+            <div class="hud-label">Time</div>
+            <div class="hud-value" id="timer">5:00</div>
+          </div>
+          <div class="hud-actions">
+            <button class="hud-btn" id="btn-pause" type="button">Pause</button>
+            <button class="hud-btn" id="btn-reset" type="button">Reset</button>
+          </div>
+        </div>
+
+        <div class="board-wrap">
+          <div class="board-frame" id="board-frame">
+            <div class="strip" id="source-strip"></div>
+            <div class="board" id="board"></div>
+            <div class="strip" id="outlets-strip"></div>
+          </div>
+        </div>
+
+        <div class="game-footer">Rotate pipes to route water from 💧 to every ✓. Don't let it hit a 🛑.</div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Round transition -->
+  <div class="overlay round-transition" id="overlay-transition">
+    <div class="overlay-card">
+      <div class="big" id="trans-title">Round 2</div>
+      <div class="subtitle" id="trans-subtitle">4×4 grid, two outlets to reach</div>
+    </div>
+  </div>
+
+  <!-- Result banner -->
+  <div class="overlay result-banner" id="overlay-result">
+    <div class="overlay-card">
+      <div class="big" id="result-title">✅ Flow Complete!</div>
+      <div class="subtitle" id="result-subtitle"></div>
+    </div>
+  </div>
+
+  <!-- Pause -->
+  <div class="overlay" id="overlay-pause">
+    <div class="overlay-card">
+      <h2>Paused</h2>
+      <div class="subtitle">Click Resume to continue.</div>
+      <div class="modal-actions">
+        <button class="btn-primary" id="btn-resume" type="button">Resume</button>
+        <button class="btn-danger" id="btn-pause-reset" type="button">Reset Game</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reset confirm -->
+  <div class="overlay" id="overlay-reset">
+    <div class="overlay-card">
+      <h2>Reset the game?</h2>
+      <div class="subtitle">Your progress will be lost.</div>
+      <div class="modal-actions">
+        <button class="btn-danger" id="btn-reset-confirm" type="button">Yes, Reset</button>
+        <button class="btn-secondary" id="btn-reset-cancel" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- End -->
+  <div class="overlay" id="overlay-end">
+    <div class="overlay-card">
+      <h2 id="end-title">Run complete!</h2>
+      <div class="subtitle" id="end-subtitle"></div>
+      <div class="stat-grid">
+        <div class="stat-tile"><div class="label">Score</div><div class="value" id="end-score">0</div></div>
+        <div class="stat-tile"><div class="label">Rotations</div><div class="value" id="end-rotations">0</div></div>
+        <div class="stat-tile"><div class="label">Total Time</div><div class="value" id="end-time">0:00</div></div>
+        <div class="stat-tile"><div class="label">Rounds Played</div><div class="value" id="end-wins">0</div></div>
+      </div>
+      <table class="round-table" id="end-round-table">
+        <thead><tr><th>Round</th><th>Result</th><th>Rotations</th><th>Time</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="modal-actions">
+        <button class="btn-primary" id="btn-play-again" type="button">Play Again</button>
+        <a class="btn-secondary" href="../index.html">Back to Hub</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  /* ============================================================
+     Flow Forge — implementation per games/flow-forge.md
+     ============================================================ */
+  (() => {
+    /* ----- Constants ----- */
+    // Rounds are infinite: grid grows by 1 every 2 rounds, capped at 10×10.
+    // Valid-outlet count = floor((size - 1) / 2):
+    //   4×4 → 1, 5×5 → 2, 6×6 → 2, 7×7 → 3, 8×8 → 3, 9×9 → 4, 10×10 → 4.
+    const MAX_GRID_SIZE = 10;
+    const roundConfig = (n) => {
+      const size = Math.min(MAX_GRID_SIZE, 4 + Math.floor((n - 1) / 2));
+      const validCount = Math.max(1, Math.floor((size - 1) / 2));
+      return { rows: size, cols: size, validCount };
+    };
+    const TOTAL_GAME_MS = 5 * 60 * 1000;
+    const ROUND_TRANSITION_MS = 1500;
+    const RESULT_BANNER_MS = 1800;
+    const FLOW_STEP_MS = 150;
+    const SESSION_LIMIT = 20;
+
+    const SIDES = ['top', 'right', 'bottom', 'left'];
+    const STEP = {
+      top:    { dr: -1, dc:  0, enter: 'bottom' },
+      right:  { dr:  0, dc:  1, enter: 'left'   },
+      bottom: { dr:  1, dc:  0, enter: 'top'    },
+      left:   { dr:  0, dc: -1, enter: 'right'  },
+    };
+
+    /* ----- DOM refs ----- */
+    const el = (id) => document.getElementById(id);
+    const $ = {
+      screenIntro: el('screen-intro'),
+      screenGame:  el('screen-game'),
+      btnStart:    el('btn-start'),
+      hudRound:    el('hud-round'),
+      hudScore:    el('hud-score'),
+      timer:       el('timer'),
+      board:       el('board'),
+      sourceStrip: el('source-strip'),
+      outletsStrip:el('outlets-strip'),
+      boardFrame:  el('board-frame'),
+      btnLaunch:   el('btn-launch'),
+      btnPause:    el('btn-pause'),
+      btnReset:    el('btn-reset'),
+      ovTransition:el('overlay-transition'),
+      transTitle:  el('trans-title'),
+      transSubtitle: el('trans-subtitle'),
+      ovResult:    el('overlay-result'),
+      resultTitle: el('result-title'),
+      resultSubtitle: el('result-subtitle'),
+      ovPause:     el('overlay-pause'),
+      btnResume:   el('btn-resume'),
+      btnPauseReset: el('btn-pause-reset'),
+      ovReset:     el('overlay-reset'),
+      btnResetConfirm: el('btn-reset-confirm'),
+      btnResetCancel: el('btn-reset-cancel'),
+      ovEnd:       el('overlay-end'),
+      endTitle:    el('end-title'),
+      endSubtitle: el('end-subtitle'),
+      endScore:    el('end-score'),
+      endRotations:el('end-rotations'),
+      endTime:     el('end-time'),
+      endWins:     el('end-wins'),
+      endRoundTable: el('end-round-table').querySelector('tbody'),
+      btnPlayAgain: el('btn-play-again'),
+    };
+
+    /* ----- State ----- */
+    const state = {
+      phase: 'intro', // intro | playing | launching | result | paused | resetConfirm | over
+      sessionId: null,
+      sessionStartedAt: null,
+      sessionEndedAt: null,
+      endedReason: null,
+
+      // Per-round
+      roundNo: 0,
+      rows: 0, cols: 0,
+      sourceRow: 0,
+      validOutlets: [],
+      valves: [],
+      layout: null,
+      initialLayout: null,
+      rotations: 0,
+      rotationLog: [],
+      roundStartedAt: null,
+
+      // Cumulative
+      totalScore: 0,
+      totalRotations: 0,
+      rounds: [],
+
+      // Timer
+      remainingMs: TOTAL_GAME_MS,
+      lastTickRT: 0,
+      rafId: null,
+    };
+
+    /* ----- Helpers ----- */
+    const range = (a, b) => {
+      const out = [];
+      if (a <= b) for (let i = a; i <= b; i++) out.push(i);
+      else        for (let i = a; i >= b; i--) out.push(i);
+      return out;
+    };
+    const shuffle = (arr) => {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
+    const randInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
+    const fmtTime = (ms) => {
+      const s = Math.max(0, Math.ceil(ms / 1000));
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    };
+    const fmtDuration = (ms) => {
+      const s = Math.max(0, Math.floor(ms / 1000));
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    };
+    const newSessionId = () =>
+      (crypto.randomUUID && crypto.randomUUID()) ||
+      `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
+    const setScreen = (name) => {
+      $.screenIntro.classList.toggle('active', name === 'intro');
+      $.screenGame.classList.toggle('active', name !== 'intro');
+    };
+    const showOverlay = (overlayEl, on) => overlayEl.classList.toggle('show', !!on);
+
+    /* ----- Pipe geometry ----- */
+    const rotateSide = (side, n) => SIDES[(SIDES.indexOf(side) + n) % 4];
+
+    const pipeConnections = (type, rotation) => {
+      if (type === 'empty') return [];
+      const r = ((rotation % 4) + 4) % 4;
+      if (type === 'straight') {
+        // canonical: left, right (rotation 0); rotation 1 -> top, bottom
+        return r % 2 === 0 ? ['left', 'right'] : ['top', 'bottom'];
+      }
+      if (type === 'elbow') {
+        // canonical {top, right} = └
+        return [rotateSide('top', r), rotateSide('right', r)];
+      }
+      if (type === 't-junction') {
+        // canonical {left, right, bottom} = ┬
+        return [rotateSide('left', r), rotateSide('right', r), rotateSide('bottom', r)];
+      }
+      return [];
+    };
+
+    // Inverse: given a set of connection sides, return {type, rotation} that yields exactly those.
+    const pipeFor = (sides) => {
+      const key = sides.slice().sort().join(',');
+      const map = {
+        'left,right':       { type: 'straight',  rotation: 0 },
+        'bottom,top':       { type: 'straight',  rotation: 1 },
+        'right,top':        { type: 'elbow',     rotation: 0 }, // └
+        'bottom,right':     { type: 'elbow',     rotation: 1 }, // ┌
+        'bottom,left':      { type: 'elbow',     rotation: 2 }, // ┐
+        'left,top':         { type: 'elbow',     rotation: 3 }, // ┘
+        'bottom,left,right':{ type: 't-junction',rotation: 0 }, // ┬
+        'bottom,left,top':  { type: 't-junction',rotation: 1 }, // ┤
+        'left,right,top':   { type: 't-junction',rotation: 2 }, // ┴
+        'bottom,right,top': { type: 't-junction',rotation: 3 }, // ├
+      };
+      return map[key] || { type: 'empty', rotation: 0 };
+    };
+
+    /* ----- SVG rendering ----- */
+    // Each pipe is rendered as an SVG with currentColor fill, then rotated via CSS transform.
+    const PIPE_SVG = {
+      empty:    `<svg viewBox="0 0 100 100"></svg>`,
+      straight: `<svg viewBox="0 0 100 100"><rect class="pipe-shape" x="0"  y="38" width="100" height="24" rx="3"/></svg>`,
+      elbow:    `<svg viewBox="0 0 100 100">
+                   <rect class="pipe-shape" x="38" y="0"  width="24" height="62" rx="3"/>
+                   <rect class="pipe-shape" x="38" y="38" width="62" height="24" rx="3"/>
+                 </svg>`,
+      'tjunction':`<svg viewBox="0 0 100 100">
+                   <rect class="pipe-shape" x="0"  y="38" width="100" height="24" rx="3"/>
+                   <rect class="pipe-shape" x="38" y="38" width="24" height="62"  rx="3"/>
+                 </svg>`,
+    };
+    const pipeSvgFor = (type) => PIPE_SVG[type === 't-junction' ? 'tjunction' : type] || PIPE_SVG.empty;
+
+    /* ----- Round generation ----- */
+    const newEmptyLayout = (rows, cols) => {
+      const grid = [];
+      for (let r = 0; r < rows; r++) {
+        const row = [];
+        for (let c = 0; c < cols; c++) row.push({ type: 'empty', rotation: 0 });
+        grid.push(row);
+      }
+      return grid;
+    };
+
+    /**
+     * Generate the waypoint list for a path from (srcR, srcC) entering 'left'
+     * to (dstR, dstC) exiting 'right'. Each consecutive pair of waypoints lies
+     * on the same row OR the same column — the segment between them is filled
+     * with straights, with elbows / T-junctions at the corners.
+     *
+     * Default shape is a 5-waypoint zigzag (two turn columns + one
+     * intermediate row), giving the player a less-trivially-horizontal path
+     * to figure out. Falls back to a single-turn Z when grid space or
+     * exclusion constraints make the zigzag infeasible.
+     *
+     * `excludeRows` are rows the path 1 must avoid using as its intermediate
+     * row AND avoid traversing through a vertical segment — typically the
+     * other outlet rows in a multi-outlet round, since path 2 will horizontal
+     * through those rows.
+     */
+    const generateWaypoints = (srcR, srcC, dstR, dstC, rows, excludeRows) => {
+      excludeRows = excludeRows || [];
+      const wp = [{ row: srcR, col: srcC }];
+      const minTurn = srcC + 1;
+      const maxTurn = dstC - 1;
+
+      if (minTurn > maxTurn) {
+        if (srcR !== dstR) wp.push({ row: dstR, col: srcC });
+        wp.push({ row: dstR, col: dstC });
+        return wp;
+      }
+
+      const turnCols = range(minTurn, maxTurn);
+      const intRows = range(0, rows - 1).filter(r =>
+        r !== srcR && r !== dstR && !excludeRows.includes(r)
+      );
+
+      const between = (a, b) => {
+        const lo = Math.min(a, b), hi = Math.max(a, b);
+        const out = [];
+        for (let r = lo + 1; r < hi; r++) out.push(r);
+        return out;
+      };
+
+      // intR is only safe if path 1's verticals (at tcA between srcR & intR
+      // and at tcB between intR & dstR) don't pass through an excluded row.
+      const safeIntRows = intRows.filter(intR => {
+        const traversed = new Set([...between(srcR, intR), ...between(intR, dstR)]);
+        return !excludeRows.some(r => traversed.has(r));
+      });
+
+      if (safeIntRows.length > 0 && turnCols.length >= 2) {
+        const shuffledTC = shuffle(turnCols);
+        const tcA = Math.min(shuffledTC[0], shuffledTC[1]);
+        const tcB = Math.max(shuffledTC[0], shuffledTC[1]);
+        const intR = safeIntRows[Math.floor(Math.random() * safeIntRows.length)];
+        wp.push({ row: srcR, col: tcA });
+        wp.push({ row: intR, col: tcA });
+        wp.push({ row: intR, col: tcB });
+        wp.push({ row: dstR, col: tcB });
+        wp.push({ row: dstR, col: dstC });
+        return wp;
+      }
+
+      // Single-Z fallback with random turn column.
+      const tc = turnCols[Math.floor(Math.random() * turnCols.length)];
+      wp.push({ row: srcR, col: tc });
+      if (srcR !== dstR) wp.push({ row: dstR, col: tc });
+      wp.push({ row: dstR, col: dstC });
+      return wp;
+    };
+
+    /**
+     * Walk the waypoint list and place pipes: corners get elbows (or
+     * straights when entry/exit happen to align), straight segments between
+     * waypoints get straights. Entry side of the very first waypoint is
+     * 'left' (water enters from the source); exit side of the last waypoint
+     * is 'right' (water exits to the outlet).
+     */
+    const buildPathFromWaypoints = (layout, waypoints) => {
+      let entrySide = 'left';
+      for (let i = 0; i < waypoints.length; i++) {
+        const wp = waypoints[i];
+        const next = waypoints[i + 1];
+        let exitSide;
+        if (!next) {
+          exitSide = 'right';
+        } else if (next.row === wp.row) {
+          exitSide = next.col > wp.col ? 'right' : 'left';
+        } else {
+          exitSide = next.row > wp.row ? 'bottom' : 'top';
+        }
+        if (entrySide === exitSide) {
+          layout[wp.row][wp.col] = pipeFor(['left', 'right']);
+        } else {
+          layout[wp.row][wp.col] = pipeFor([entrySide, exitSide]);
+        }
+        if (next) {
+          if (next.row === wp.row) {
+            const step = next.col > wp.col ? 1 : -1;
+            for (let c = wp.col + step; c !== next.col; c += step) {
+              layout[wp.row][c] = pipeFor(['left', 'right']);
+            }
+            entrySide = step === 1 ? 'left' : 'right';
+          } else {
+            const step = next.row > wp.row ? 1 : -1;
+            for (let r = wp.row + step; r !== next.row; r += step) {
+              layout[r][wp.col] = pipeFor(['top', 'bottom']);
+            }
+            entrySide = step === 1 ? 'top' : 'bottom';
+          }
+        }
+      }
+    };
+
+    // Add a vertical branch from (sourceRow, branchCol) — which must already
+    // be a non-empty pipe — to an outlet on row outletRow, then extend
+    // horizontally to the right edge so the branch terminates at the outlet.
+    const attachBranch = (layout, sourceRow, branchCol, outletRow, cols) => {
+      if (outletRow === sourceRow) return;
+      const old = layout[sourceRow][branchCol];
+      const oldConns = pipeConnections(old.type, old.rotation);
+      const dir = outletRow > sourceRow ? 'bottom' : 'top';
+      // Already a 3-way junction with a different 3rd direction → no widen.
+      if (oldConns.length >= 3 && !oldConns.includes(dir)) return;
+      layout[sourceRow][branchCol] = pipeFor(Array.from(new Set([...oldConns, dir])));
+
+      if (dir === 'bottom') {
+        for (let r = sourceRow + 1; r < outletRow; r++) {
+          if (layout[r][branchCol].type === 'empty') layout[r][branchCol] = pipeFor(['top', 'bottom']);
+        }
+        if (layout[outletRow][branchCol].type === 'empty') {
+          layout[outletRow][branchCol] = pipeFor(['top', 'right']);
+        }
+      } else {
+        for (let r = sourceRow - 1; r > outletRow; r--) {
+          if (layout[r][branchCol].type === 'empty') layout[r][branchCol] = pipeFor(['top', 'bottom']);
+        }
+        if (layout[outletRow][branchCol].type === 'empty') {
+          layout[outletRow][branchCol] = pipeFor(['bottom', 'right']);
+        }
+      }
+      for (let c = branchCol + 1; c < cols; c++) {
+        if (layout[outletRow][c].type === 'empty') layout[outletRow][c] = pipeFor(['left', 'right']);
+      }
+    };
+
+    const buildSolvableLayout = (rows, cols, sourceRow, outletRows) => {
+      const layout = newEmptyLayout(rows, cols);
+      const sorted = outletRows.slice().sort((a, b) => {
+        const da = Math.abs(a - sourceRow), db = Math.abs(b - sourceRow);
+        if (da !== db) return da - db;
+        return a - b;
+      });
+
+      if (outletRows.length === 1) {
+        // Single outlet — use the zigzag waypoints for added complexity.
+        const target = outletRows[0];
+        if (target === sourceRow) {
+          for (let c = 0; c < cols; c++) layout[sourceRow][c] = pipeFor(['left', 'right']);
+        } else {
+          const wp = generateWaypoints(sourceRow, 0, target, cols - 1, rows, []);
+          buildPathFromWaypoints(layout, wp);
+        }
+        return layout;
+      }
+
+      if (outletRows.length === 2) {
+        // Two outlets — keep the zigzag for path 1 and branch path 2 from col 0.
+        const otherOutlets = sorted.slice(1);
+        const target1 = sorted[0];
+        if (target1 === sourceRow) {
+          for (let c = 0; c < cols; c++) layout[sourceRow][c] = pipeFor(['left', 'right']);
+        } else {
+          const wp = generateWaypoints(sourceRow, 0, target1, cols - 1, rows, otherOutlets);
+          buildPathFromWaypoints(layout, wp);
+        }
+        for (let i = 1; i < sorted.length; i++) {
+          attachBranch(layout, sourceRow, 0, sorted[i], cols);
+        }
+        return layout;
+      }
+
+      // Three or more outlets — straight trunk at sourceRow + ordered branches.
+      // The trick to avoid pipe collisions: for outlets on the same side of
+      // sourceRow, the branch to the *closer* outlet must take the higher
+      // column. Then a farther branch's vertical (lower column) stays to the
+      // left of the closer branch's horizontal, so verticals never run through
+      // another branch's horizontal segment.
+      for (let c = 0; c < cols; c++) layout[sourceRow][c] = pipeFor(['left', 'right']);
+      const upOutlets = outletRows.filter(r => r < sourceRow).sort((a, b) => b - a);   // closest first
+      const downOutlets = outletRows.filter(r => r > sourceRow).sort((a, b) => a - b); // closest first
+      const branchSlots = shuffle(range(0, cols - 2)).slice(0, upOutlets.length + downOutlets.length);
+      const upCols   = branchSlots.slice(0, upOutlets.length).sort((a, b) => b - a);
+      const downCols = branchSlots.slice(upOutlets.length).sort((a, b) => b - a);
+      for (let i = 0; i < upOutlets.length;   i++) attachBranch(layout, sourceRow, upCols[i],   upOutlets[i],   cols);
+      for (let i = 0; i < downOutlets.length; i++) attachBranch(layout, sourceRow, downCols[i], downOutlets[i], cols);
+      return layout;
+    };
+
+    /**
+     * Add 2–3 decoy branches to the solved layout: convert a path cell into a
+     * T-junction with a third connection that leads to a 1-cell branch
+     * terminating at a safe edge (top, bottom, or left). Water flows into
+     * decoys but exits the grid harmlessly — the win condition is unaffected,
+     * but the layout has more clutter for the player to interpret.
+     */
+    const addDecoyBranches = (layout, rows, cols, valves, targetCount) => {
+      let placed = 0;
+      let attempts = 0;
+      while (placed < targetCount && attempts < 40) {
+        attempts++;
+        const onPath = [];
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const t = layout[r][c];
+            if (t.type === 'straight' || t.type === 'elbow') onPath.push({ r, c });
+          }
+        }
+        if (!onPath.length) break;
+        const { r, c } = onPath[Math.floor(Math.random() * onPath.length)];
+        const tile = layout[r][c];
+        const conns = pipeConnections(tile.type, tile.rotation);
+
+        const candidates = [];
+        for (const side of SIDES) {
+          if (conns.includes(side)) continue;
+          const step = STEP[side];
+          const nr = r + step.dr, nc = c + step.dc;
+          if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+          if (layout[nr][nc].type !== 'empty') continue;
+
+          const fromSide = step.enter;
+          const safeSeconds = [];
+          for (const s2 of SIDES) {
+            if (s2 === fromSide) continue;
+            const step2 = STEP[s2];
+            const nnr = nr + step2.dr, nnc = nc + step2.dc;
+            // Top / bottom / left edges: water exits into nothing — safe.
+            if (nnr < 0 || nnr >= rows) { safeSeconds.push(s2); continue; }
+            if (nnc < 0) { safeSeconds.push(s2); continue; }
+            // Right edge: only safe if not a valve row.
+            if (nnc >= cols) {
+              if (!valves.includes(nr)) safeSeconds.push(s2);
+              continue;
+            }
+            // Mid-grid termination is unsafe — filler may connect and chain
+            // into who-knows-where. Skip.
+          }
+          if (safeSeconds.length) candidates.push({ side, fromSide, nr, nc, safeSeconds });
+        }
+        if (!candidates.length) continue;
+
+        const choice = candidates[Math.floor(Math.random() * candidates.length)];
+        layout[r][c] = pipeFor([...conns, choice.side]);
+        const second = choice.safeSeconds[Math.floor(Math.random() * choice.safeSeconds.length)];
+        layout[choice.nr][choice.nc] = pipeFor([choice.fromSide, second]);
+        placed++;
+      }
+      return placed;
+    };
+
+    const fillFiller = (layout, roundNo) => {
+      const types = roundNo === 1
+        ? ['straight', 'elbow']
+        : ['straight', 'elbow', 't-junction'];
+      for (let r = 0; r < layout.length; r++) {
+        for (let c = 0; c < layout[r].length; c++) {
+          if (layout[r][c].type === 'empty') {
+            const type = types[Math.floor(Math.random() * types.length)];
+            layout[r][c] = { type, rotation: 0 };
+          }
+        }
+      }
+    };
+
+    const scrambleRotations = (layout) => {
+      return layout.map(row =>
+        row.map(cell => {
+          if (cell.type === 'empty') return { ...cell };
+          const rot = (cell.type === 'straight') ? randInt(0, 1) : randInt(0, 3);
+          return { type: cell.type, rotation: rot };
+        })
+      );
+    };
+
+    const generateRound = (roundNo) => {
+      const cfg = roundConfig(roundNo);
+      const { rows, cols, validCount } = cfg;
+      const sourceRow = rows === 4 ? 2 : randInt(1, rows - 2); // 4×4: fixed at row 3 (0-idx 2); larger: random middle row
+      const outletRows = shuffle(range(0, rows - 1)).slice(0, validCount);
+      const validOutlets = outletRows.slice().sort((a, b) => a - b);
+      const valves = range(0, rows - 1).filter(r => !validOutlets.includes(r));
+      const solved = buildSolvableLayout(rows, cols, sourceRow, validOutlets);
+      addDecoyBranches(solved, rows, cols, valves, randInt(2, 3));
+      fillFiller(solved, roundNo);
+      const initialLayout = scrambleRotations(solved);
+      return { rows, cols, sourceRow, validOutlets, valves, initialLayout };
+    };
+
+    /* ----- Flow simulation ----- */
+    const simulateFlow = (layout, rows, cols, sourceRow, validOutlets, valves) => {
+      const flooded = new Set();
+      const order = [];
+      const reachedOutlets = new Set();
+      let hitValve = false;
+      const parent = {};         // cellKey → parent cellKey (the cell that fed water into this one)
+      const rightSideExits = []; // rows where water exited the grid to the right (outlet or valve)
+
+      const queue = [{ r: sourceRow, c: 0, from: 'left', parentKey: null }];
+      while (queue.length) {
+        const { r, c, from, parentKey } = queue.shift();
+        if (r < 0 || r >= rows || c < 0) continue;
+        if (c >= cols) {
+          rightSideExits.push(r);
+          if (valves.includes(r)) hitValve = true;
+          else if (validOutlets.includes(r)) reachedOutlets.add(r);
+          continue;
+        }
+        const tile = layout[r][c];
+        const conns = pipeConnections(tile.type, tile.rotation);
+        if (!conns.includes(from)) continue;
+        const key = `${r},${c}`;
+        if (flooded.has(key)) continue;
+        flooded.add(key);
+        parent[key] = parentKey;
+        order.push({ r, c });
+        for (const exit of conns) {
+          if (exit === from) continue;
+          const step = STEP[exit];
+          queue.push({ r: r + step.dr, c: c + step.dc, from: step.enter, parentKey: key });
+        }
+      }
+
+      // Main flow = cells on a parent-chain from source to a *reached outlet*.
+      // Auxiliary branches that exit at decoys (top/bottom/left edges) OR that
+      // happen to graze a valve are NOT in the main path, so they're not
+      // counted as part of the round's flow.
+      const mainPath = new Set();
+      for (const r of reachedOutlets) {
+        let curKey = `${r},${cols - 1}`;
+        if (!flooded.has(curKey)) continue;
+        while (curKey) {
+          mainPath.add(curKey);
+          curKey = parent[curKey];
+        }
+      }
+
+      return { flooded, order, reachedOutlets, hitValve, mainPath, rightSideExits };
+    };
+
+    /* ----- Rendering ----- */
+    const cellAt = (r, c) => $.board.querySelector(`[data-r="${r}"][data-c="${c}"]`);
+
+    const setCellRotationVisual = (r, c) => {
+      const cell = cellAt(r, c);
+      if (!cell) return;
+      const tile = state.layout[r][c];
+      const svg = cell.querySelector('svg');
+      if (!svg) return;
+      // visRot is monotonic (only ever incremented by 1 per click). Using it for
+      // the CSS transform avoids the wrap-around case where rotation goes 3→0
+      // and CSS interpolates that as a -270° spin instead of +90°.
+      const v = tile.visRot ?? tile.rotation;
+      svg.style.transform = `rotate(${v * 90}deg)`;
+    };
+
+    const renderBoard = () => {
+      const { rows, cols, layout, sourceRow, validOutlets, valves } = state;
+      $.boardFrame.style.setProperty('--rows', rows);
+      $.boardFrame.style.setProperty('--cols', cols);
+      $.board.style.setProperty('--rows', rows);
+      $.board.style.setProperty('--cols', cols);
+      $.board.innerHTML = '';
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const tile = layout[r][c];
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'cell' + (tile.type === 'empty' ? ' empty' : '');
+          btn.dataset.r = String(r);
+          btn.dataset.c = String(c);
+          btn.disabled = tile.type === 'empty';
+          btn.innerHTML = pipeSvgFor(tile.type);
+          const svg = btn.querySelector('svg');
+          if (svg) svg.style.transform = `rotate(${tile.rotation * 90}deg)`;
+          btn.addEventListener('click', () => onCellClick(r, c));
+          $.board.appendChild(btn);
+        }
+      }
+      // Source strip
+      $.sourceStrip.style.setProperty('--rows', rows);
+      $.sourceStrip.innerHTML = '';
+      for (let r = 0; r < rows; r++) {
+        const m = document.createElement('div');
+        m.className = 'strip-marker' + (r === sourceRow ? ' source-active' : '');
+        m.textContent = r === sourceRow ? '💧' : '';
+        $.sourceStrip.appendChild(m);
+      }
+      // Outlets strip
+      $.outletsStrip.style.setProperty('--rows', rows);
+      $.outletsStrip.innerHTML = '';
+      for (let r = 0; r < rows; r++) {
+        const m = document.createElement('div');
+        m.className = 'strip-marker';
+        m.dataset.r = String(r);
+        if (validOutlets.includes(r)) {
+          m.classList.add('outlet-valid');
+          m.textContent = '✓';
+        } else if (valves.includes(r)) {
+          m.classList.add('outlet-valve');
+          m.textContent = '🛑';
+        }
+        $.outletsStrip.appendChild(m);
+      }
+    };
+
+    const renderHUD = () => {
+      $.hudRound.textContent = String(state.roundNo);
+      $.hudScore.textContent = String(state.totalScore);
+      $.timer.textContent = fmtTime(state.remainingMs);
+      $.timer.classList.toggle('danger', state.remainingMs <= 30 * 1000);
+    };
+
+    /* ----- Lifecycle ----- */
+    const startGame = () => {
+      state.sessionId = newSessionId();
+      state.sessionStartedAt = new Date().toISOString();
+      state.sessionEndedAt = null;
+      state.endedReason = null;
+      state.totalScore = 0;
+      state.totalRotations = 0;
+      state.rounds = [];
+      state.remainingMs = TOTAL_GAME_MS;
+
+      if (state.rafId) {
+        cancelAnimationFrame(state.rafId);
+        state.rafId = null;
+      }
+
+      setScreen('game');
+      state.phase = 'playing';
+      state.lastTickRT = performance.now();
+      tick();
+      beginRound(1);
+    };
+
+    const beginRound = (n) => {
+      state.roundNo = n;
+      const r = generateRound(n);
+      state.rows = r.rows;
+      state.cols = r.cols;
+      state.sourceRow = r.sourceRow;
+      state.validOutlets = r.validOutlets;
+      state.valves = r.valves;
+      state.layout = r.initialLayout.map(row => row.map(c => ({ ...c })));
+      state.initialLayout = r.initialLayout.map(row => row.map(c => ({ ...c })));
+      state.rotations = 0;
+      state.rotationLog = [];
+      state.roundStartedAt = new Date().toISOString();
+
+      $.btnLaunch.disabled = false;
+      renderBoard();
+      renderHUD();
+      state.phase = 'playing';
+    };
+
+    const onCellClick = (r, c) => {
+      if (state.phase !== 'playing') return;
+      const tile = state.layout[r][c];
+      if (tile.type === 'empty') return;
+      const maxRot = (tile.type === 'straight') ? 2 : 4;
+      tile.rotation = (tile.rotation + 1) % maxRot;
+      // Monotonic visual counter — initialise off the tile's pre-click logical
+      // rotation so the very first click is +90° from the rendered state.
+      const prevVis = tile.visRot ?? ((tile.rotation - 1 + maxRot) % maxRot);
+      tile.visRot = prevVis + 1;
+      state.rotations += 1;
+      state.totalRotations += 1;
+      state.rotationLog.push({ ts: new Date().toISOString(), r, c });
+      setCellRotationVisual(r, c);
+    };
+
+    const launchRound = async () => {
+      if (state.phase !== 'playing') return;
+      state.phase = 'launching';
+      $.btnLaunch.disabled = true;
+      // Disable all cells during animation
+      $.board.querySelectorAll('.cell').forEach(b => b.disabled = true);
+
+      const sim = simulateFlow(
+        state.layout, state.rows, state.cols, state.sourceRow,
+        state.validOutlets, state.valves
+      );
+
+      // Score = number of valid outlets the water actually reached this round.
+      // Reaching some-but-not-all outlets earns partial credit. Auxiliary
+      // branches grazing valves are ignored.
+      const outletsReached = sim.reachedOutlets.size;
+      const totalOutlets   = state.validOutlets.length;
+      const allReached     = outletsReached === totalOutlets;
+      const anyReached     = outletsReached > 0;
+
+      // Animate the main flow (paths to reached outlets) when at least one
+      // outlet was reached. If nothing reached, animate the full flooded set
+      // so the player can see where the water actually went.
+      const animationCells = anyReached
+        ? sim.order.filter(({ r, c }) => sim.mainPath.has(`${r},${c}`))
+        : sim.order;
+      for (const { r, c } of animationCells) {
+        cellAt(r, c)?.classList.add('flooded');
+        await new Promise(res => setTimeout(res, FLOW_STEP_MS));
+      }
+
+      for (const r of sim.reachedOutlets) {
+        const m = $.outletsStrip.querySelector(`[data-r="${r}"]`);
+        m && m.classList.add('outlet-reached');
+      }
+      // Only highlight valves on a total-loss round — otherwise the valve
+      // shake contradicts the partial credit the player just earned.
+      if (sim.hitValve && !anyReached) {
+        for (const r of state.valves) {
+          const m = $.outletsStrip.querySelector(`[data-r="${r}"]`);
+          m && m.classList.add('outlet-hit-valve');
+        }
+      }
+
+      state.phase = 'result';
+      $.resultTitle.textContent = allReached
+        ? '✅ Flow Complete!'
+        : (anyReached ? '⚠️ Partial Flow' : '❌ Pipeline Broken');
+      $.resultSubtitle.textContent = anyReached
+        ? `+${outletsReached} — reached ${outletsReached} of ${totalOutlets} outlet${totalOutlets === 1 ? '' : 's'}.`
+        : 'No outlets reached.';
+      showOverlay($.ovResult, true);
+
+      state.totalScore += outletsReached;
+      const roundRecord = {
+        round_no: state.roundNo,
+        grid_size: [state.rows, state.cols],
+        source_row: state.sourceRow,
+        valid_outlets: state.validOutlets.slice(),
+        valves: state.valves.slice(),
+        started_at: state.roundStartedAt,
+        launched_at: new Date().toISOString(),
+        rotations: state.rotations,
+        outlets_reached: outletsReached,
+        total_outlets: totalOutlets,
+        result: allReached ? 'win' : (anyReached ? 'partial' : 'loss'),
+        rotation_log: state.rotationLog.slice(),
+        initial_layout: state.initialLayout,
+        final_layout: state.layout.map(row => row.map(c => ({ ...c }))),
+      };
+      state.rounds.push(roundRecord);
+      renderHUD();
+
+      setTimeout(() => {
+        showOverlay($.ovResult, false);
+        if (state.remainingMs > 0) {
+          showRoundTransition(state.roundNo + 1);
+        } else {
+          finishGame('timeout');
+        }
+      }, RESULT_BANNER_MS);
+    };
+
+    const showRoundTransition = (next) => {
+      state.phase = 'transition';
+      const cfg = roundConfig(next);
+      $.transTitle.textContent = `Round ${next}`;
+      $.transSubtitle.textContent = `${cfg.rows}×${cfg.cols} grid, ${cfg.validCount === 1 ? 'one outlet' : 'two outlets'} to reach`;
+      showOverlay($.ovTransition, true);
+      setTimeout(() => {
+        showOverlay($.ovTransition, false);
+        beginRound(next);
+        state.lastTickRT = performance.now();
+      }, ROUND_TRANSITION_MS);
+    };
+
+    const finishGame = (reason) => {
+      state.phase = 'over';
+      state.endedReason = reason;
+      state.sessionEndedAt = new Date().toISOString();
+
+      const playedRounds = state.rounds.filter(r => r.result === 'win' || r.result === 'partial' || r.result === 'loss');
+      const fullClears = playedRounds.filter(r => r.result === 'win').length;
+      const elapsed = TOTAL_GAME_MS - state.remainingMs;
+
+      $.endTitle.textContent = "Time's up!";
+      $.endSubtitle.textContent = playedRounds.length === 0
+        ? 'No rounds completed.'
+        : `${state.totalScore} outlet${state.totalScore === 1 ? '' : 's'} reached across ${playedRounds.length} round${playedRounds.length === 1 ? '' : 's'} — ${fullClears} full clear${fullClears === 1 ? '' : 's'}.`;
+      $.endScore.textContent = String(state.totalScore);
+      $.endRotations.textContent = String(state.totalRotations);
+      $.endTime.textContent = fmtDuration(elapsed);
+      $.endWins.textContent = String(playedRounds.length);
+
+      $.endRoundTable.innerHTML = '';
+      for (let i = 0; i < playedRounds.length; i++) {
+        const r = playedRounds[i];
+        const tr = document.createElement('tr');
+        const startedMs = new Date(r.started_at).getTime();
+        const launchedMs = new Date(r.launched_at).getTime();
+        const dur = launchedMs - startedMs;
+        const sizeStr = `${r.grid_size[0]}×${r.grid_size[1]}`;
+        const icon = r.result === 'win' ? '✅' : (r.result === 'partial' ? '⚠️' : '❌');
+        const score = `+${r.outlets_reached || 0}/${r.total_outlets || 0}`;
+        tr.innerHTML = `<td>${i + 1} <span style="color:var(--muted);font-size:11px">${sizeStr}</span></td><td>${icon} ${score}</td><td>${r.rotations}</td><td>${fmtDuration(dur)}</td>`;
+        $.endRoundTable.appendChild(tr);
+      }
+
+      persistSession({
+        session_id: state.sessionId,
+        game: 'flow-forge',
+        started_at: state.sessionStartedAt,
+        ended_at: state.sessionEndedAt,
+        ended_reason: state.endedReason,
+        final_score: state.totalScore,
+        rounds: state.rounds,
+      });
+
+      showOverlay($.ovEnd, true);
+    };
+
+    const persistSession = (record) => {
+      try {
+        const key = 'flowForge.sessions';
+        const arr = JSON.parse(localStorage.getItem(key) || '[]');
+        arr.push(record);
+        localStorage.setItem(key, JSON.stringify(arr.slice(-SESSION_LIMIT)));
+      } catch (e) { /* private mode etc. — ignore */ }
+    };
+
+    /* ----- Timer ----- */
+    const tick = () => {
+      if (state.phase === 'intro' || state.phase === 'over') {
+        state.rafId = null;
+        return;
+      }
+      state.rafId = requestAnimationFrame(tick);
+      const now = performance.now();
+      const dt = now - state.lastTickRT;
+      state.lastTickRT = now;
+      if (state.phase === 'playing' || state.phase === 'launching') {
+        state.remainingMs = Math.max(0, state.remainingMs - dt);
+        $.timer.textContent = fmtTime(state.remainingMs);
+        $.timer.classList.toggle('danger', state.remainingMs <= 30 * 1000);
+        if (state.remainingMs <= 0 && state.phase === 'playing') {
+          // Force-launch the in-progress round
+          launchRound();
+        }
+      }
+    };
+
+    /* ----- Pause / reset ----- */
+    const pauseGame = () => {
+      if (state.phase !== 'playing') return;
+      state.phase = 'paused';
+      showOverlay($.ovPause, true);
+    };
+    const resumeGame = () => {
+      if (state.phase !== 'paused') return;
+      showOverlay($.ovPause, false);
+      state.phase = 'playing';
+      state.lastTickRT = performance.now();
+    };
+    const askReset = () => {
+      if (state.phase === 'intro' || state.phase === 'over') return;
+      if (state.phase === 'launching' || state.phase === 'result') return;
+      if (state.phase === 'paused') showOverlay($.ovPause, false);
+      state.phase = 'resetConfirm';
+      showOverlay($.ovReset, true);
+    };
+    const cancelReset = () => {
+      showOverlay($.ovReset, false);
+      state.phase = 'playing';
+      state.lastTickRT = performance.now();
+    };
+    const confirmReset = () => {
+      showOverlay($.ovReset, false);
+      // Save partial run with reset reason
+      if (state.roundNo >= 1) {
+        state.rounds.push({
+          round_no: state.roundNo,
+          grid_size: [state.rows, state.cols],
+          source_row: state.sourceRow,
+          valid_outlets: state.validOutlets.slice(),
+          valves: state.valves.slice(),
+          started_at: state.roundStartedAt,
+          launched_at: new Date().toISOString(),
+          rotations: state.rotations,
+          result: 'reset',
+          rotation_log: state.rotationLog.slice(),
+        });
+      }
+      state.endedReason = 'reset';
+      state.sessionEndedAt = new Date().toISOString();
+      persistSession({
+        session_id: state.sessionId,
+        game: 'flow-forge',
+        started_at: state.sessionStartedAt,
+        ended_at: state.sessionEndedAt,
+        ended_reason: state.endedReason,
+        final_score: state.totalScore,
+        rounds: state.rounds,
+      });
+      showOverlay($.ovEnd, false);
+      startGame();
+    };
+
+    const playAgain = () => {
+      showOverlay($.ovEnd, false);
+      $.board.innerHTML = '';
+      $.sourceStrip.innerHTML = '';
+      $.outletsStrip.innerHTML = '';
+      state.phase = 'intro';
+      if (state.rafId) {
+        cancelAnimationFrame(state.rafId);
+        state.rafId = null;
+      }
+      setScreen('intro');
+    };
+
+    /* ----- Wire up ----- */
+    $.btnStart.addEventListener('click', startGame);
+    $.btnLaunch.addEventListener('click', launchRound);
+    $.btnPause.addEventListener('click', pauseGame);
+    $.btnReset.addEventListener('click', askReset);
+    $.btnResume.addEventListener('click', resumeGame);
+    $.btnPauseReset.addEventListener('click', askReset);
+    $.btnResetConfirm.addEventListener('click', confirmReset);
+    $.btnResetCancel.addEventListener('click', cancelReset);
+    $.btnPlayAgain.addEventListener('click', playAgain);
+  })();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabase-client.js"></script>
+</body>
+</html>

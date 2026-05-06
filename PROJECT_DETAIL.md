@@ -1,12 +1,12 @@
-# BrainArena — Web-Based Aptitude Game Platform
+# Synapse — Web-Based Aptitude Game Platform
 
 ## 1. Project Overview
 
-**Project Name:** BrainArena
+**Project Name:** Synapse
 **Type:** Web-based aptitude training platform
-**Tagline:** *Train Your Mind, Master Your Aptitude.*
+**Tagline:** *Spark Your Thinking.*
 
-BrainArena is a browser-based platform that helps users sharpen their cognitive and aptitude skills through 11 fun, bite-sized mini-games. Each game targets a specific mental skill — logic, memory, numerical ability, spatial reasoning, verbal skills, attention, and pattern recognition — making it useful for students preparing for aptitude tests, professionals doing brain training, or casual users who enjoy puzzles.
+Synapse is a browser-based platform that helps users sharpen their cognitive and aptitude skills through 11 fun, bite-sized mini-games. Each game targets a specific mental skill — logic, memory, numerical ability, spatial reasoning, verbal skills, attention, and pattern recognition — making it useful for students preparing for aptitude tests, professionals doing brain training, or casual users who enjoy puzzles.
 
 The platform runs entirely in the browser (no installation needed) and is designed to be lightweight, responsive, and accessible on both desktop and mobile devices.
 

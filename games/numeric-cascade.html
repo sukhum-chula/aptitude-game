@@ -486,8 +486,7 @@
           </div>
           <div class="hud-actions">
             <button class="hud-btn" id="btn-hint" type="button">Show Hint</button>
-            <button class="hud-btn" id="btn-pause" type="button">Pause</button>
-            <button class="hud-btn" id="btn-reset" type="button">Reset</button>
+            <button class="hud-btn" id="btn-pause" type="button">End at this point</button>
           </div>
         </div>
 
@@ -509,26 +508,14 @@
     </div>
   </div>
 
-  <!-- ============ PAUSE ============ -->
+  <!-- ============ END CONFIRM ============ -->
   <div class="overlay" id="overlay-pause">
     <div class="overlay-card">
-      <h2>Paused</h2>
-      <div class="subtitle">Press <code style="background: rgba(99,102,241,0.15); padding: 1px 6px; border-radius: 4px;">P</code> or click Resume to continue.</div>
+      <h2>End the run?</h2>
+      <div class="subtitle">Your current score will be saved.</div>
       <div class="modal-actions">
-        <button class="btn-primary" id="btn-resume" type="button">Resume</button>
-        <button class="btn-danger" id="btn-pause-reset" type="button">Reset Game</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ============ RESET CONFIRM ============ -->
-  <div class="overlay" id="overlay-reset">
-    <div class="overlay-card">
-      <h2>Reset the game?</h2>
-      <div class="subtitle">Your current progress will be lost.</div>
-      <div class="modal-actions">
-        <button class="btn-danger" id="btn-reset-confirm" type="button">Yes, Reset</button>
-        <button class="btn-secondary" id="btn-reset-cancel" type="button" style="cursor: pointer;">Cancel</button>
+        <button class="btn-danger" id="btn-pause-reset" type="button">End Run</button>
+        <button class="btn-secondary" id="btn-resume" type="button">Cancel</button>
       </div>
     </div>
   </div>
@@ -585,7 +572,6 @@
       board: el("board"),
       directionHint: el("direction-hint"),
       btnPause: el("btn-pause"),
-      btnReset: el("btn-reset"),
       btnStart: el("btn-start"),
       btnHint: el("btn-hint"),
       // Overlays
@@ -596,9 +582,6 @@
       ovPause: el("overlay-pause"),
       btnResume: el("btn-resume"),
       btnPauseReset: el("btn-pause-reset"),
-      ovReset: el("overlay-reset"),
-      btnResetConfirm: el("btn-reset-confirm"),
-      btnResetCancel: el("btn-reset-cancel"),
       ovEnd: el("overlay-end"),
       endTitle: el("end-title"),
       endSubtitle: el("end-subtitle"),
@@ -842,8 +825,7 @@
       const elapsedAtEnd = TOTAL_GAME_MS - state.remainingMs;
       const durationMs = elapsedAtEnd - state.roundStartElapsed;
       const cleared = reason === "completed";
-      const roundScore = state.roundCorrect + (cleared ? 5 : 0);
-      state.totalScore += (cleared ? 5 : 0); // correct points were added per click
+      const roundScore = state.roundCorrect;
 
       state.rounds.push({
         round_no: state.roundNo,
@@ -893,10 +875,6 @@
       state.phase = "over";
       state.endedReason = reason;
       state.sessionEndedAt = new Date().toISOString();
-      const timeBonus = (reason === "completed")
-        ? Math.max(0, Math.floor(state.remainingMs / 1000))
-        : 0;
-      state.totalScore += timeBonus;
 
       // End screen content
       const totalClicks = state.totalCorrect + state.totalWrong;
@@ -908,7 +886,7 @@
         ? "All three rounds cleared!"
         : (reason === "timeout") ? "Time's up." : "Run ended.";
       $.endSubtitle.textContent = (reason === "completed")
-        ? (timeBonus > 0 ? `Time bonus: +${timeBonus}` : "Solid run.")
+        ? "Solid run."
         : (reason === "timeout") ? "The clock got ahead of you." : "Reset acknowledged.";
       $.endScore.textContent = String(state.totalScore);
       $.endAccuracy.textContent = `${accuracyPct}%`;
@@ -937,7 +915,6 @@
         total_correct: state.totalCorrect,
         total_wrong: state.totalWrong,
         accuracy_pct: accuracyPct,
-        time_bonus: timeBonus,
         rounds: state.rounds,
       });
 
@@ -1161,37 +1138,14 @@
       state.phase = "running";
       state.lastTickRT = performance.now();
     };
-    const askReset = () => {
-      if (state.phase === "intro" || state.phase === "over") return;
-      // If we were running, pause the timer while the modal is up.
-      if (state.phase === "running") state.phase = "resetConfirm";
-      else if (state.phase === "paused") {
-        showOverlay($.ovPause, false);
-        state.phase = "resetConfirm";
-      }
-      showOverlay($.ovReset, true);
-    };
-    const cancelReset = () => {
-      showOverlay($.ovReset, false);
-      // If user was paused before, return to paused; else resume running.
-      if (!$.ovPause.classList.contains("show")) {
-        state.phase = "running";
-        state.lastTickRT = performance.now();
-      } else {
-        state.phase = "paused";
-      }
-    };
-    const confirmReset = () => {
-      showOverlay($.ovReset, false);
-      // Finalize the in-progress round/session as `reset`.
+    const confirmEnd = () => {
+      showOverlay($.ovPause, false);
+      // Finalize the in-progress round/session as a quit, then show end screen.
       if (state.roundNo >= 1 && state.roundNo <= 3) {
-        endRound("reset");
+        endRound("quit");
       } else {
-        state.phase = "over";
+        finishGame("quit");
       }
-      // Ensure end overlay isn't shown — go straight to a fresh run.
-      showOverlay($.ovEnd, false);
-      startGame();
     };
 
     const playAgain = () => {
@@ -1209,12 +1163,9 @@
     /* ----- Wire up controls ----- */
     $.btnStart.addEventListener("click", startGame);
     $.btnPause.addEventListener("click", pauseGame);
-    $.btnReset.addEventListener("click", askReset);
     $.btnHint.addEventListener("click", toggleHint);
     $.btnResume.addEventListener("click", resumeGame);
-    $.btnPauseReset.addEventListener("click", askReset);
-    $.btnResetConfirm.addEventListener("click", confirmReset);
-    $.btnResetCancel.addEventListener("click", cancelReset);
+    $.btnPauseReset.addEventListener("click", confirmEnd);
     $.btnPlayAgain.addEventListener("click", playAgain);
 
     document.addEventListener("keydown", (e) => {
@@ -1223,13 +1174,8 @@
       if (k === "p") {
         if (state.phase === "running") pauseGame();
         else if (state.phase === "paused") resumeGame();
-      } else if (k === "r") {
-        if (state.phase === "resetConfirm") return;
-        askReset();
       } else if (k === "h") {
         if (state.phase === "running" || state.phase === "paused") toggleHint();
-      } else if (k === "escape") {
-        if (state.phase === "resetConfirm") cancelReset();
       }
     });
   })();

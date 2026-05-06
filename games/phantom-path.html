@@ -542,8 +542,7 @@
           </div>
           <div class="hud-actions">
             <button class="hud-btn" id="btn-hint" type="button">Hint: Off</button>
-            <button class="hud-btn" id="btn-pause" type="button">Pause</button>
-            <button class="hud-btn" id="btn-reset" type="button">Reset</button>
+            <button class="hud-btn" id="btn-pause" type="button">End at this point</button>
           </div>
         </div>
 
@@ -565,26 +564,14 @@
     </div>
   </main>
 
-  <!-- ============ PAUSE ============ -->
+  <!-- ============ END CONFIRM ============ -->
   <div class="overlay" id="overlay-pause">
     <div class="overlay-card">
-      <h2>Paused</h2>
-      <div class="subtitle">Click Resume to continue.</div>
+      <h2>End the run?</h2>
+      <div class="subtitle">Your current score will be saved.</div>
       <div class="modal-actions">
-        <button class="btn-primary" id="btn-resume" type="button">Resume</button>
-        <button class="btn-danger" id="btn-pause-reset" type="button">Reset Game</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ============ RESET CONFIRM ============ -->
-  <div class="overlay" id="overlay-reset">
-    <div class="overlay-card">
-      <h2>Reset the game?</h2>
-      <div class="subtitle">Your current progress will be lost.</div>
-      <div class="modal-actions">
-        <button class="btn-danger" id="btn-reset-confirm" type="button">Yes, Reset</button>
-        <button class="btn-secondary" id="btn-reset-cancel" type="button">Cancel</button>
+        <button class="btn-danger" id="btn-pause-reset" type="button">End Run</button>
+        <button class="btn-secondary" id="btn-resume" type="button">Cancel</button>
       </div>
     </div>
   </div>
@@ -644,14 +631,10 @@
       hintOverlay: el("hint-overlay"),
       btnStart:    el("btn-start"),
       btnPause:    el("btn-pause"),
-      btnReset:    el("btn-reset"),
       btnHint:     el("btn-hint"),
       ovPause:     el("overlay-pause"),
       btnResume:   el("btn-resume"),
       btnPauseReset:el("btn-pause-reset"),
-      ovReset:     el("overlay-reset"),
-      btnResetConfirm: el("btn-reset-confirm"),
-      btnResetCancel:  el("btn-reset-cancel"),
       ovEnd:       el("overlay-end"),
       endTitle:    el("end-title"),
       endSubtitle: el("end-subtitle"),
@@ -1310,37 +1293,9 @@
       state.phase = state._prePausePhase || "running";
       showOverlay($.ovPause, false);
     };
-    const askReset = () => {
-      if (state.phase === "intro" || state.phase === "over") return;
-      if (state.phase !== "paused") {
-        // Pause-equivalent freeze: stash phase so cancelReset can restore.
-        state.pauseAt = performance.now();
-        state._prePausePhase = state.phase;
-      } else {
-        showOverlay($.ovPause, false);
-      }
-      state.phase = "resetConfirm";
-      showOverlay($.ovReset, true);
-    };
-    const cancelReset = () => {
-      showOverlay($.ovReset, false);
-      // Restore from the freeze.
-      const now = performance.now();
-      const offset = now - state.pauseAt;
-      state.stepStartedRT  += offset;
-      state.windowOpenedRT += offset;
-      state.revealUntilRT  += offset;
-      for (const t of state.trail) t.spawnedRT += offset;
-      state.lastTickRT = now;
-      state.phase = state._prePausePhase || "running";
-    };
-    const confirmReset = () => {
-      showOverlay($.ovReset, false);
-      // Finalize current session as reset.
-      finishGame("reset");
-      // Then jump straight into a fresh run.
-      showOverlay($.ovEnd, false);
-      startGame();
+    const confirmEnd = () => {
+      showOverlay($.ovPause, false);
+      finishGame("quit");
     };
 
     const playAgain = () => {
@@ -1357,11 +1312,8 @@
     /* ----- Wire up controls ----- */
     $.btnStart.addEventListener("click", startGame);
     $.btnPause.addEventListener("click", pauseGame);
-    $.btnReset.addEventListener("click", askReset);
     $.btnResume.addEventListener("click", resumeGame);
-    $.btnPauseReset.addEventListener("click", askReset);
-    $.btnResetConfirm.addEventListener("click", confirmReset);
-    $.btnResetCancel.addEventListener("click", cancelReset);
+    $.btnPauseReset.addEventListener("click", confirmEnd);
     $.btnPlayAgain.addEventListener("click", playAgain);
     $.btnHint.addEventListener("click", () => setHintMode(!state.hintMode));
 

@@ -411,8 +411,7 @@
             <div class="hud-value" id="timer">5:00</div>
           </div>
           <div class="hud-actions">
-            <button class="hud-btn" id="btn-pause" type="button">Pause</button>
-            <button class="hud-btn" id="btn-reset" type="button">Reset</button>
+            <button class="hud-btn" id="btn-pause" type="button">End at this point</button>
           </div>
         </div>
 
@@ -445,26 +444,14 @@
     </div>
   </div>
 
-  <!-- Pause -->
+  <!-- End confirm -->
   <div class="overlay" id="overlay-pause">
     <div class="overlay-card">
-      <h2>Paused</h2>
-      <div class="subtitle">Click Resume to continue.</div>
+      <h2>End the run?</h2>
+      <div class="subtitle">Your current score will be saved.</div>
       <div class="modal-actions">
-        <button class="btn-primary" id="btn-resume" type="button">Resume</button>
-        <button class="btn-danger" id="btn-pause-reset" type="button">Reset Game</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Reset confirm -->
-  <div class="overlay" id="overlay-reset">
-    <div class="overlay-card">
-      <h2>Reset the game?</h2>
-      <div class="subtitle">Your progress will be lost.</div>
-      <div class="modal-actions">
-        <button class="btn-danger" id="btn-reset-confirm" type="button">Yes, Reset</button>
-        <button class="btn-secondary" id="btn-reset-cancel" type="button">Cancel</button>
+        <button class="btn-danger" id="btn-pause-reset" type="button">End Run</button>
+        <button class="btn-secondary" id="btn-resume" type="button">Cancel</button>
       </div>
     </div>
   </div>
@@ -535,7 +522,6 @@
       boardFrame:  el('board-frame'),
       btnLaunch:   el('btn-launch'),
       btnPause:    el('btn-pause'),
-      btnReset:    el('btn-reset'),
       ovTransition:el('overlay-transition'),
       transTitle:  el('trans-title'),
       transSubtitle: el('trans-subtitle'),
@@ -545,9 +531,6 @@
       ovPause:     el('overlay-pause'),
       btnResume:   el('btn-resume'),
       btnPauseReset: el('btn-pause-reset'),
-      ovReset:     el('overlay-reset'),
-      btnResetConfirm: el('btn-reset-confirm'),
-      btnResetCancel: el('btn-reset-cancel'),
       ovEnd:       el('overlay-end'),
       endTitle:    el('end-title'),
       endSubtitle: el('end-subtitle'),
@@ -1274,7 +1257,7 @@
       const fullClears = playedRounds.filter(r => r.result === 'win').length;
       const elapsed = TOTAL_GAME_MS - state.remainingMs;
 
-      $.endTitle.textContent = "Time's up!";
+      $.endTitle.textContent = reason === 'quit' ? 'Run ended.' : "Time's up!";
       $.endSubtitle.textContent = playedRounds.length === 0
         ? 'No rounds completed.'
         : `${state.totalScore} outlet${state.totalScore === 1 ? '' : 's'} reached across ${playedRounds.length} round${playedRounds.length === 1 ? '' : 's'} — ${fullClears} full clear${fullClears === 1 ? '' : 's'}.`;
@@ -1352,48 +1335,27 @@
       state.phase = 'playing';
       state.lastTickRT = performance.now();
     };
-    const askReset = () => {
-      if (state.phase === 'intro' || state.phase === 'over') return;
-      if (state.phase === 'launching' || state.phase === 'result') return;
-      if (state.phase === 'paused') showOverlay($.ovPause, false);
-      state.phase = 'resetConfirm';
-      showOverlay($.ovReset, true);
-    };
-    const cancelReset = () => {
-      showOverlay($.ovReset, false);
-      state.phase = 'playing';
-      state.lastTickRT = performance.now();
-    };
-    const confirmReset = () => {
-      showOverlay($.ovReset, false);
-      // Save partial run with reset reason
+    const confirmEnd = () => {
+      showOverlay($.ovPause, false);
+      // Log the in-flight round (if any) as a quit before finalising the run.
       if (state.roundNo >= 1) {
-        state.rounds.push({
-          round_no: state.roundNo,
-          grid_size: [state.rows, state.cols],
-          source_row: state.sourceRow,
-          valid_outlets: state.validOutlets.slice(),
-          valves: state.valves.slice(),
-          started_at: state.roundStartedAt,
-          launched_at: new Date().toISOString(),
-          rotations: state.rotations,
-          result: 'reset',
-          rotation_log: state.rotationLog.slice(),
-        });
+        const last = state.rounds[state.rounds.length - 1];
+        if (!last || last.round_no !== state.roundNo) {
+          state.rounds.push({
+            round_no: state.roundNo,
+            grid_size: [state.rows, state.cols],
+            source_row: state.sourceRow,
+            valid_outlets: state.validOutlets.slice(),
+            valves: state.valves.slice(),
+            started_at: state.roundStartedAt,
+            launched_at: new Date().toISOString(),
+            rotations: state.rotations,
+            result: 'quit',
+            rotation_log: state.rotationLog.slice(),
+          });
+        }
       }
-      state.endedReason = 'reset';
-      state.sessionEndedAt = new Date().toISOString();
-      persistSession({
-        session_id: state.sessionId,
-        game: 'flow-forge',
-        started_at: state.sessionStartedAt,
-        ended_at: state.sessionEndedAt,
-        ended_reason: state.endedReason,
-        final_score: state.totalScore,
-        rounds: state.rounds,
-      });
-      showOverlay($.ovEnd, false);
-      startGame();
+      finishGame('quit');
     };
 
     const playAgain = () => {
@@ -1413,11 +1375,8 @@
     $.btnStart.addEventListener('click', startGame);
     $.btnLaunch.addEventListener('click', launchRound);
     $.btnPause.addEventListener('click', pauseGame);
-    $.btnReset.addEventListener('click', askReset);
     $.btnResume.addEventListener('click', resumeGame);
-    $.btnPauseReset.addEventListener('click', askReset);
-    $.btnResetConfirm.addEventListener('click', confirmReset);
-    $.btnResetCancel.addEventListener('click', cancelReset);
+    $.btnPauseReset.addEventListener('click', confirmEnd);
     $.btnPlayAgain.addEventListener('click', playAgain);
   })();
   </script>

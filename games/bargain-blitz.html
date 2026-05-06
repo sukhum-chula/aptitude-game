@@ -493,8 +493,7 @@
             <div class="hud-value" id="timer">5:00</div>
           </div>
           <div class="hud-actions">
-            <button class="hud-btn" id="btn-pause" type="button">Pause</button>
-            <button class="hud-btn" id="btn-reset" type="button">Reset</button>
+            <button class="hud-btn" id="btn-pause" type="button">End at this point</button>
           </div>
         </div>
 
@@ -534,26 +533,14 @@
     </div>
   </div>
 
-  <!-- ============ PAUSE ============ -->
+  <!-- ============ END CONFIRM ============ -->
   <div class="overlay" id="overlay-pause">
     <div class="overlay-card">
-      <h2>Paused</h2>
-      <div class="subtitle">Click Resume to continue.</div>
+      <h2>End the run?</h2>
+      <div class="subtitle">Your current score will be saved.</div>
       <div class="modal-actions">
-        <button class="btn-primary" id="btn-resume" type="button">Resume</button>
-        <button class="btn-danger" id="btn-pause-reset" type="button">Reset Game</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ============ RESET CONFIRM ============ -->
-  <div class="overlay" id="overlay-reset">
-    <div class="overlay-card">
-      <h2>Reset the game?</h2>
-      <div class="subtitle">Your current progress will be lost.</div>
-      <div class="modal-actions">
-        <button class="btn-danger" id="btn-reset-confirm" type="button">Yes, Reset</button>
-        <button class="btn-secondary" id="btn-reset-cancel" type="button">Cancel</button>
+        <button class="btn-danger" id="btn-pause-reset" type="button">End Run</button>
+        <button class="btn-secondary" id="btn-resume" type="button">Cancel</button>
       </div>
     </div>
   </div>
@@ -620,7 +607,6 @@
       returnsList:  el("returns-list"),
       btnNext:      el("btn-next"),
       btnPause:     el("btn-pause"),
-      btnReset:     el("btn-reset"),
       nextSummary:  el("next-summary"),
       ovTransition: el("overlay-transition"),
       transTitle:   el("trans-title"),
@@ -630,9 +616,6 @@
       ovPause:      el("overlay-pause"),
       btnResume:    el("btn-resume"),
       btnPauseReset:el("btn-pause-reset"),
-      ovReset:      el("overlay-reset"),
-      btnResetConfirm: el("btn-reset-confirm"),
-      btnResetCancel:  el("btn-reset-cancel"),
       ovEnd:        el("overlay-end"),
       endTitle:     el("end-title"),
       endSubtitle:  el("end-subtitle"),
@@ -707,10 +690,13 @@
       reduced < (thresholdPct / 100) * full;
 
     /* ----- Pricing & shelf generation ----- */
-    const pickThreshold = (roundNo) => {
+    // Pick the round's threshold, excluding `prev` so two consecutive rounds
+    // never share the same criterion. Round 1 is always 50 by spec.
+    const pickThreshold = (roundNo, prev) => {
       if (roundNo === 1) return 50;
-      if (roundNo <= 5)  return choose([25, 20]);
-      return choose([50, 25, 20, 10]);
+      const pool = roundNo <= 5 ? [25, 20] : [50, 25, 20, 10];
+      const filtered = pool.filter(t => t !== prev);
+      return choose(filtered.length ? filtered : pool);
     };
     const PASSERS_PER_ROUND = 5;
 
@@ -866,7 +852,7 @@
         return;
       }
       state.roundNo  = n;
-      state.threshold = pickThreshold(n);
+      state.threshold = pickThreshold(n, state.threshold);
       state.shelf    = generateShelf(n, state.threshold);
       state.passingTotal  = state.shelf.filter((c) => c.passes).length;
       state.roundStartedAt   = new Date().toISOString();
@@ -940,7 +926,7 @@
       if (cleared && bonus > 0) summaryParts.push(`Clean sweep +${bonus}`);
       $.transTitle.textContent    = `Round ${nextRound}`;
       $.transSummary.textContent  = summaryParts.join(" · ");
-      const nextThreshold = pickThreshold(nextRound);
+      const nextThreshold = pickThreshold(nextRound, state.threshold);
       // Pre-pick threshold so the transition shows it; pass it forward via a transient.
       state._pendingThreshold = nextThreshold;
       $.transThreshold.textContent= `Next threshold: under ${nextThreshold}% of full price`;
@@ -1183,27 +1169,9 @@
       state.phase = state._prePausePhase || "running";
       showOverlay($.ovPause, false);
     };
-    const askReset = () => {
-      if (state.phase === "intro" || state.phase === "over") return;
-      if (state.phase !== "paused") {
-        state.pauseAt = performance.now();
-        state._prePausePhase = state.phase;
-      } else {
-        showOverlay($.ovPause, false);
-      }
-      state.phase = "resetConfirm";
-      showOverlay($.ovReset, true);
-    };
-    const cancelReset = () => {
-      showOverlay($.ovReset, false);
-      state.lastTickRT = performance.now();
-      state.phase = state._prePausePhase || "running";
-    };
-    const confirmReset = () => {
-      showOverlay($.ovReset, false);
-      finishGame("reset");
-      showOverlay($.ovEnd, false);
-      startGame();
+    const confirmEnd = () => {
+      showOverlay($.ovPause, false);
+      finishGame("quit");
     };
 
     const playAgain = () => {
@@ -1222,11 +1190,8 @@
     $.btnStart.addEventListener("click", startGame);
     $.btnNext.addEventListener("click", onNextRound);
     $.btnPause.addEventListener("click", pauseGame);
-    $.btnReset.addEventListener("click", askReset);
     $.btnResume.addEventListener("click", resumeGame);
-    $.btnPauseReset.addEventListener("click", askReset);
-    $.btnResetConfirm.addEventListener("click", confirmReset);
-    $.btnResetCancel.addEventListener("click", cancelReset);
+    $.btnPauseReset.addEventListener("click", confirmEnd);
     $.btnPlayAgain.addEventListener("click", playAgain);
   })();
   </script>
